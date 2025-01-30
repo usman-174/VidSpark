@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  password        String
+  profileImage    String?
+  gender          String?
+  createdAt       DateTime     @default(now())
+  resetToken      String?
+  role            Role         @default(USER)
+  // Self-referential relationship for parent-child
+  parent          User?        @relation("ParentOf", fields: [parentId], references: [id])
+  parentId        String?
+  children        User[]       @relation("ParentOf")
+  credits         Credit[]
+  // Relation to invitations
+  sentInvitations Invitation[] @relation("UserInvitations")
+}
+
+model Invitation {
+  id           String   @id @default(uuid())
+  inviterId    String
+  inviteeEmail String
+  inviteLink   String?
+  isUsed       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  // Relation to User (inviter)
+  inviter User @relation("UserInvitations", fields: [inviterId], references: [id])
+
+  @@index([inviterId]) // Index for better query performance
+}
+
+model Credit {
+  id        String   @id @default(uuid())
+  credits   Int
+  createdAt DateTime @default(now())
+
+  User   User?   @relation(fields: [userId], references: [id])
+  userId String?
+}
+
+// Now I need a model called Policy which will tell us the number of credits a user can earn by inviting someone
+model Policy {
+  id        String     @id @default(uuid())
+  credits   Int
+  createdAt DateTime   @default(now())
+  type      PolicyType
+}
+
+enum PolicyType {
+  PARENT_RELATIONSHIP
+  SIMPLE_RELATIONSHIP
+  FIRST_SIGNUP
+}
+
+enum Role {
+  USER
+  ADMIN
+}
