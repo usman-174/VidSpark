@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "YT_KEYS" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "YT_KEYS_pkey" PRIMARY KEY ("id")
+);

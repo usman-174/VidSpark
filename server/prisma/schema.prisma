@@ -99,6 +99,12 @@ model Video {
   countryCode      String
   pageToken        String?
 
-  categoryId       String // This stores the category ID
-  category Category? @relation(fields: [categoryId], references: [categoryId])
+  categoryId String // This stores the category ID
+  category   Category? @relation(fields: [categoryId], references: [categoryId])
+}
+
+model YT_KEYS {
+  id        String   @id @default(uuid())
+  key       String
+  createdAt DateTime @default(now())
 }

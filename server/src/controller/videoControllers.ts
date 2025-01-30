@@ -1,13 +1,19 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { API_KEYS, scrapeYouTubeData } from "../scripts/YTscraper";
+import {
+  getNextApiKey,
+  loadKeysFromDB,
+  scrapeYouTubeData,
+} from "../scripts/YTscraper";
 import axios from "axios";
 
 const prisma = new PrismaClient();
 
 export const fetchAndStoreCategories = async (req: Request, res: Response) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&regionCode=PK&key=${API_KEYS[0]}`;
+    await loadKeysFromDB();
+    const apiKey = getNextApiKey();
+    const url = `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&regionCode=PK&key=${apiKey}`;
     const response = await axios.get(url);
     const categories = response.data.items;
 
@@ -43,7 +49,7 @@ export const scrapeVideos = async (req: Request, res: Response) => {
     res.status(200).json({ message: "Scraping complete" });
   } catch (error: any) {
     console.log("Error scraping videos:", error.message);
-    
+
     res.status(500).json({ error: error.message });
   }
 };
