@@ -51,6 +51,7 @@ function App() {
           {/* Admin only routes */}
           <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/videos" element={<YTVideos />} />
           </Route>
         </Route>
       </Routes>
@@ -64,11 +65,12 @@ export default App;
 import { Navigate, Outlet } from "react-router-dom";
 import { RootLayout } from "./components/layout/RootLayout";
 import { UserDashboard } from "./pages/UserDashboard";
-import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminDashboard } from "./pages/Admin/AdminDashboard";
 import { Loader2 } from "lucide-react";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
+import YTVideos from "./pages/Admin/YTVideos";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

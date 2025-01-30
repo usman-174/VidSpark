@@ -2,6 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import axios from "@/api/axiosInstance";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface UserStats {
   totalUsers: number;
@@ -46,6 +48,12 @@ export const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+        {/* Link to go to videos page */}
+        <Link to="/admin/videos">
+          <Button>View Videos</Button>
+        </Link>
+
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card>

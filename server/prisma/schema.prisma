@@ -69,3 +69,36 @@ enum Role {
   USER
   ADMIN
 }
+
+model Category {
+  id         String @id @default(uuid())
+  categoryId String @unique // This matches YouTube's categoryId
+  title      String
+
+  // Relation with Video
+  videos Video[]
+}
+
+model Video {
+  id               String   @id @default(uuid())
+  videoId          String   @unique
+  title            String
+  publishedAt      DateTime
+  channelId        String
+  channelTitle     String
+  trendingDate     DateTime
+  tags             String
+  viewCount        Int
+  likes            Int
+  dislikes         Int
+  commentCount     Int
+  thumbnailLink    String
+  commentsDisabled Boolean
+  ratingsDisabled  Boolean
+  description      String
+  countryCode      String
+  pageToken        String?
+
+  categoryId       String // This stores the category ID
+  category Category? @relation(fields: [categoryId], references: [categoryId])
+}
