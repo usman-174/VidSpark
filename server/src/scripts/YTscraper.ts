@@ -3,48 +3,39 @@ import axios from "axios";
 
 const prisma = new PrismaClient();
 
-// Memory cache for the API keys
+// Memory cache for API keys
 let cachedKeys: string[] = [];
 let currentKeyIndex = 0;
 
 /**
- * Load all API keys from the YT_KEYS table into memory.
- * Should be called once at the start of the application.
+ * Load API keys from DB.
  */
 export async function loadKeysFromDB(): Promise<void> {
   try {
     const keysFromDB = await prisma.yT_KEYS.findMany();
-
     if (!keysFromDB.length) {
       throw new Error("No YT_KEYS found in the database.");
     }
 
     cachedKeys = keysFromDB.map((item) => item.key);
     currentKeyIndex = 0;
-    console.log(
-      `Loaded ${cachedKeys.length} YouTube API keys from the database.`
-    );
+    console.log(`Loaded ${cachedKeys.length} YouTube API keys from the database.`);
   } catch (error) {
     console.error("Error loading API keys from DB:", error);
-    throw error; // Re-throw to handle it upstream if necessary
+    throw error;
   }
 }
 
 /**
- * Retrieves the next available API key.
- * Throws an error if all keys have been exhausted.
+ * Get the next available API key.
  */
 export function getNextApiKey(): string {
   if (cachedKeys.length === 0) {
-    throw new Error(
-      "No YouTube API keys are loaded in memory. Please load keys first."
-    );
+    throw new Error("No YouTube API keys are loaded. Please load keys first.");
   }
 
   if (currentKeyIndex >= cachedKeys.length) {
-    throw new Error(
-      "All YouTube API keys have been used or reached their quota."
-    );
+    throw new Error("All YouTube API keys have been used or reached their quota.");
   }
 
   const key = cachedKeys[currentKeyIndex];
@@ -54,11 +45,9 @@ export function getNextApiKey(): string {
 
 /**
  * Parses an ISO 8601 duration string into total seconds.
- * Example: "PT1H2M3S" => 3723 seconds
  */
 function parseISO8601Duration(durationStr: string): number {
   const matches = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-
   if (!matches) return 0;
 
   const hours = parseInt(matches[1] || "0", 10);
@@ -69,19 +58,14 @@ function parseISO8601Duration(durationStr: string): number {
 }
 
 /**
- * Sanitizes a string by removing newlines, quotes, and trimming whitespace.
+ * Sanitizes a string.
  */
 function prepareFeature(feature: any): string {
-  if (!feature) return "";
-  return feature
-    .toString()
-    .replace(/[\n\r"]+/g, "")
-    .trim();
+  return feature ? feature.toString().replace(/[\n\r"]+/g, "").trim() : "";
 }
 
 /**
- * Fetches YouTube data with API key rotation and error handling.
- * Excludes Shorts (videos <= 60 seconds).
+ * Fetch latest videos using `order=date` and `publishedAfter`.
  */
 export async function fetchYouTubeData(pageToken: string | null) {
   let apiKey: string;
@@ -94,30 +78,27 @@ export async function fetchYouTubeData(pageToken: string | null) {
       return null;
     }
 
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=id,statistics,snippet,contentDetails&pageToken=${
-      pageToken || ""
-    }&chart=mostPopular&regionCode=PK&maxResults=50&key=${apiKey}`;
+    // Get latest video date to fetch only fresh videos
+    const latestVideo = await prisma.video.findFirst({
+      orderBy: { publishedAt: "desc" },
+      select: { publishedAt: true },
+    });
+
+    const lastPublishedDate = latestVideo ? latestVideo.publishedAt.toISOString() : "2025-01-30T00:00:00Z";
+
+    const url = `https://www.googleapis.com/youtube/v3/search?part=id,snippet&type=video&maxResults=50&order=date&regionCode=PK&publishedAfter=${lastPublishedDate}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
-      console.log(
-        `Fetched ${response.data.items.length} videos using API key ${apiKey}`
-      );
+      console.log(`Fetched ${response.data.items.length} videos using API key ${apiKey}`);
       return response.data;
     } catch (error: any) {
-      const errorCode =
-        error.response?.data?.error?.errors?.[0]?.reason || "unknown";
+      const errorCode = error.response?.data?.error?.errors?.[0]?.reason || "unknown";
 
       if (errorCode === "quotaExceeded") {
-        console.warn(
-          `API Key ${apiKey} has exceeded its quota. Attempting to use the next key.`
-        );
-        // Continue the loop to try the next key
+        console.warn(`API Key ${apiKey} has exceeded its quota. Switching to next key.`);
       } else {
-        console.error(
-          "YouTube API Error:",
-          error.response?.data || error.message
-        );
+        console.error("YouTube API Error:", error.response?.data || error.message);
         return null;
       }
     }
@@ -125,40 +106,74 @@ export async function fetchYouTubeData(pageToken: string | null) {
 }
 
 /**
- * Saves fetched videos to the database, excluding Shorts and ensuring categories exist.
+ * Fetch video details by video IDs to get `contentDetails` (duration).
  */
-export async function saveVideosToDB(videos: any[], pageToken: string | null) {
-  for (const video of videos) {
-    // Ensure the video has necessary statistics
+async function fetchVideoDetails(videoIds: string[]) {
+  let apiKey: string;
+  
+  while (true) {
+    try {
+      apiKey = getNextApiKey();
+    } catch (err) {
+      console.error("Error fetching API key:", err);
+      return null;
+    }
+
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(",")}&key=${apiKey}`;
+
+    try {
+      const response = await axios.get(url);
+      return response.data.items;
+    } catch (error: any) {
+      console.error("Failed to fetch video details:", error.response?.data || error.message);
+      return null;
+    }
+  }
+}
+
+/**
+ * Save new videos to the database (no updates).
+ */
+export async function saveVideosToDB(videos: any[], pageToken: string | null): Promise<number> {
+  let savedCount = 0;
+
+  // Extract video IDs to fetch full details
+  const videoIds = videos.map((video) => video.id.videoId);
+  const videoDetails = await fetchVideoDetails(videoIds);
+
+  if (!videoDetails) {
+    console.error("Failed to fetch video details. Skipping batch.");
+    return 0;
+  }
+
+  for (const video of videoDetails) {
     if (!video.statistics) {
       console.warn(`Video ${video.id} lacks statistics. Skipping.`);
       continue;
     }
 
-    // Parse duration to filter out Shorts (<= 60 seconds)
-    const durationSeconds = parseISO8601Duration(
-      video.contentDetails?.duration || ""
-    );
+    const durationSeconds = parseISO8601Duration(video.contentDetails?.duration || "");
     if (durationSeconds <= 60) {
-      console.log(
-        `Skipping SHORT video: ${video.id} (Duration: ${durationSeconds}s)`
-      );
+      console.log(`Skipping SHORT video: ${video.id} (Duration: ${durationSeconds}s)`);
       continue;
     }
 
-    // Check if the category exists in the database
     const categoryExists = await prisma.category.findUnique({
       where: { categoryId: video.snippet.categoryId },
     });
 
     if (!categoryExists) {
-      console.log(
-        `Skipping video ${video.id} — category ${video.snippet.categoryId} not found.`
-      );
+      console.log(`Skipping video ${video.id} — category ${video.snippet.categoryId} not found.`);
       continue;
     }
 
-    // Prepare the data object for upsert
+    // Check if video already exists
+    const existingVideo = await prisma.video.findUnique({ where: { videoId: video.id } });
+    if (existingVideo) {
+      console.log(`Video ${video.id} already exists. Skipping.`);
+      continue;
+    }
+
     const data = {
       videoId: video.id,
       title: prepareFeature(video.snippet.title),
@@ -177,25 +192,19 @@ export async function saveVideosToDB(videos: any[], pageToken: string | null) {
       description: prepareFeature(video.snippet.description),
       countryCode: "PK",
       pageToken,
-      // Connect the video to its category using categoryId
-      category: {
-        connect: {
-          categoryId: categoryExists.categoryId,
-        },
-      },
+      category: { connect: { categoryId: categoryExists.categoryId } },
     };
 
     try {
-      await prisma.video.upsert({
-        where: { videoId: data.videoId },
-        update: data,
-        create: data,
-      });
-      console.log(`Upserted video: ${data.videoId}`);
+      await prisma.video.create({ data });
+      console.log(`Inserted new video: ${data.videoId}`);
+      savedCount++;
     } catch (err) {
-      console.error(`Failed to upsert video ${data.videoId}:`, err);
+      console.error(`Failed to insert video ${data.videoId}:`, err);
     }
   }
+
+  return savedCount;
 }
 
 /**
@@ -203,29 +212,27 @@ export async function saveVideosToDB(videos: any[], pageToken: string | null) {
  */
 export async function scrapeYouTubeData() {
   try {
-    // Step 1: Load API keys from the database
     await loadKeysFromDB();
 
-    // Step 2: Retrieve the last stored pageToken to continue fetching
-    const lastRecord = await prisma.video.findFirst({
-      orderBy: { trendingDate: "desc" },
-      select: { pageToken: true },
-    });
+    let pageToken: string | null = null;
 
-    let pageToken = lastRecord?.pageToken || null;
+    while (true) {
+      const data = await fetchYouTubeData(pageToken);
+      if (!data || !data.items) {
+        console.error("No data received from YouTube API.");
+        return null;
+      }
 
-    // Step 3: Fetch YouTube data
-    const data = await fetchYouTubeData(pageToken);
-    if (!data || !data.items) {
-      console.error("No data received from YouTube API.");
-      return null;
+      const savedVideos = await saveVideosToDB(data.items, data.nextPageToken);
+
+      if (savedVideos > 0) {
+        console.log("Scraping completed successfully.");
+        return data.nextPageToken;
+      } else {
+        console.warn("No new videos were saved. Fetching next batch...");
+        pageToken = data.nextPageToken;
+      }
     }
-
-    // Step 4: Save the fetched videos to the database
-    await saveVideosToDB(data.items, data.nextPageToken);
-
-    console.log("Scraping completed successfully.");
-    return data.nextPageToken;
   } catch (error) {
     console.error("An error occurred during scraping:", error);
     return null;
