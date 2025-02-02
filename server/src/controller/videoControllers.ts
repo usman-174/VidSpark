@@ -1,11 +1,11 @@
-import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import axios from "axios";
+import { Request, Response } from "express";
 import {
   getNextApiKey,
   loadKeysFromDB,
   scrapeYouTubeData,
 } from "../scripts/YTscraper";
-import axios from "axios";
 
 const prisma = new PrismaClient();
 

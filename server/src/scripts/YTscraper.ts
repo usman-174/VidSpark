@@ -19,7 +19,9 @@ export async function loadKeysFromDB(): Promise<void> {
 
     cachedKeys = keysFromDB.map((item) => item.key);
     currentKeyIndex = 0;
-    console.log(`Loaded ${cachedKeys.length} YouTube API keys from the database.`);
+    console.log(
+      `Loaded ${cachedKeys.length} YouTube API keys from the database.`
+    );
   } catch (error) {
     console.error("Error loading API keys from DB:", error);
     throw error;
@@ -35,7 +37,9 @@ export function getNextApiKey(): string {
   }
 
   if (currentKeyIndex >= cachedKeys.length) {
-    throw new Error("All YouTube API keys have been used or reached their quota.");
+    throw new Error(
+      "All YouTube API keys have been used or reached their quota."
+    );
   }
 
   const key = cachedKeys[currentKeyIndex];
@@ -61,21 +65,33 @@ function parseISO8601Duration(durationStr: string): number {
  * Sanitizes a string.
  */
 function prepareFeature(feature: any): string {
-  return feature ? feature.toString().replace(/[\n\r"]+/g, "").trim() : "";
+  return feature
+    ? feature
+        .toString()
+        .replace(/[\n\r"]+/g, "")
+        .trim()
+    : "";
 }
 
 /**
  * Fetch latest videos using `order=date` and `publishedAfter`.
  */
 export async function fetchYouTubeData(pageToken: string | null) {
-  let apiKey: string;
+  let apiKey: string = "";
 
   while (true) {
     try {
       apiKey = getNextApiKey();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching API key:", err);
-      return null;
+      if (
+        err.message ===
+        "All YouTube API keys have been used or reached their quota."
+      ) {
+        throw new Error(
+          "All YouTube API keys have been used or reached their quota."
+        );
+      }
     }
 
     // Get latest video date to fetch only fresh videos
@@ -84,21 +100,31 @@ export async function fetchYouTubeData(pageToken: string | null) {
       select: { publishedAt: true },
     });
 
-    const lastPublishedDate = latestVideo ? latestVideo.publishedAt.toISOString() : "2025-01-30T00:00:00Z";
+    const lastPublishedDate = latestVideo
+      ? latestVideo.publishedAt.toISOString()
+      : "2025-01-30T00:00:00Z";
 
     const url = `https://www.googleapis.com/youtube/v3/search?part=id,snippet&type=video&maxResults=50&order=date&regionCode=PK&publishedAfter=${lastPublishedDate}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
-      console.log(`Fetched ${response.data.items.length} videos using API key ${apiKey}`);
+      console.log(
+        `Fetched ${response.data.items.length} videos using API key ${apiKey}`
+      );
       return response.data;
     } catch (error: any) {
-      const errorCode = error.response?.data?.error?.errors?.[0]?.reason || "unknown";
+      const errorCode =
+        error.response?.data?.error?.errors?.[0]?.reason || "unknown";
 
       if (errorCode === "quotaExceeded") {
-        console.warn(`API Key ${apiKey} has exceeded its quota. Switching to next key.`);
+        console.warn(
+          `API Key ${apiKey} has exceeded its quota. Switching to next key.`
+        );
       } else {
-        console.error("YouTube API Error:", error.response?.data || error.message);
+        console.error(
+          "YouTube API Error:",
+          error.response?.data || error.message
+        );
         return null;
       }
     }
@@ -110,7 +136,7 @@ export async function fetchYouTubeData(pageToken: string | null) {
  */
 async function fetchVideoDetails(videoIds: string[]) {
   let apiKey: string;
-  
+
   while (true) {
     try {
       apiKey = getNextApiKey();
@@ -119,13 +145,18 @@ async function fetchVideoDetails(videoIds: string[]) {
       return null;
     }
 
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(",")}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(
+      ","
+    )}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
       return response.data.items;
     } catch (error: any) {
-      console.error("Failed to fetch video details:", error.response?.data || error.message);
+      console.error(
+        "Failed to fetch video details:",
+        error.response?.data || error.message
+      );
       return null;
     }
   }
@@ -134,7 +165,10 @@ async function fetchVideoDetails(videoIds: string[]) {
 /**
  * Save new videos to the database (no updates).
  */
-export async function saveVideosToDB(videos: any[], pageToken: string | null): Promise<number> {
+export async function saveVideosToDB(
+  videos: any[],
+  pageToken: string | null
+): Promise<number> {
   let savedCount = 0;
 
   // Extract video IDs to fetch full details
@@ -152,9 +186,13 @@ export async function saveVideosToDB(videos: any[], pageToken: string | null): P
       continue;
     }
 
-    const durationSeconds = parseISO8601Duration(video.contentDetails?.duration || "");
+    const durationSeconds = parseISO8601Duration(
+      video.contentDetails?.duration || ""
+    );
     if (durationSeconds <= 60) {
-      console.log(`Skipping SHORT video: ${video.id} (Duration: ${durationSeconds}s)`);
+      console.log(
+        `Skipping SHORT video: ${video.id} (Duration: ${durationSeconds}s)`
+      );
       continue;
     }
 
@@ -163,12 +201,16 @@ export async function saveVideosToDB(videos: any[], pageToken: string | null): P
     });
 
     if (!categoryExists) {
-      console.log(`Skipping video ${video.id} — category ${video.snippet.categoryId} not found.`);
+      console.log(
+        `Skipping video ${video.id} — category ${video.snippet.categoryId} not found.`
+      );
       continue;
     }
 
     // Check if video already exists
-    const existingVideo = await prisma.video.findUnique({ where: { videoId: video.id } });
+    const existingVideo = await prisma.video.findUnique({
+      where: { videoId: video.id },
+    });
     if (existingVideo) {
       console.log(`Video ${video.id} already exists. Skipping.`);
       continue;
@@ -233,8 +275,8 @@ export async function scrapeYouTubeData() {
         pageToken = data.nextPageToken;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("An error occurred during scraping:", error);
-    return null;
+    throw new Error(error.message);
   }
 }
