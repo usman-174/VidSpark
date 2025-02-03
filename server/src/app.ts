@@ -6,6 +6,7 @@ import invitationRoutes from "./routes/invitationRoutes";
 import authRoutes from "./routes/authRoutes";
 import { restrictTo, setUser } from "./middleware/authMiddleware";
 import ytRouter from "./routes/ytRoutes";
+import adminRouter from "./routes/adminRoutes";
 dotenv.config();
 
 const app = express();
@@ -33,6 +34,8 @@ app.use("/api/invitations", setUser, restrictTo("USER"), invitationRoutes);
 
 // Scraper route
 app.use("/api/videos", setUser, restrictTo("ADMIN"), ytRouter);
+app.use("/api/admin", setUser, restrictTo("ADMIN"), adminRouter);
+
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
