@@ -95,7 +95,7 @@ const InvitationsCard = ({
               { label: "Total Invitations", value: data?.totalInvitations },
               { label: "Used Invitations", value: data?.usedInvitations },
               { label: "Conversion Rate", value: `${data?.conversionRate}%` },
-            ].map((item, idx) => (
+            ]?.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center">
                 <span className="text-gray-600">{item.label}</span>
                 <span className="font-medium">{item.value}</span>
@@ -106,7 +106,7 @@ const InvitationsCard = ({
             <div className="mt-4 border-t pt-4">
               <h3 className="text-sm font-medium mb-3">Top Inviters</h3>
               <div className="space-y-2">
-                {data.topInviters.map((inviter, idx) => (
+                {data.topInviters?.map((inviter, idx) => (
                   <div
                     key={idx}
                     className="flex justify-between items-center text-sm"
@@ -209,12 +209,12 @@ const DomainDistributionCard = ({
   }
 
   const chartData = {
-    labels: data.domains.map(
+    labels: data?.domains?.map(
       (entry) => `${entry.domain} (${entry.percentage}%)`
     ),
     datasets: [
       {
-        data: data.domains.map((entry) => entry.count),
+        data: data?.domains?.map((entry) => entry.count),
         backgroundColor: [
           "#6366F1",
           "#F59E0B",
@@ -244,7 +244,7 @@ const DomainDistributionCard = ({
           generateLabels: function (chart: any) {
             const data = chart.data;
             if (data.labels.length && data.datasets.length) {
-              return data.labels.map((label: string, i: number) => ({
+              return data?.labels?.map((label: string, i: number) => ({
                 text: label,
                 fillStyle: data.datasets[0].backgroundColor[i],
                 index: i,

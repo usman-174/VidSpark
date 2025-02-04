@@ -88,8 +88,8 @@ export const getAdminStats = async (req: Request, res: Response) => {
     });
 
     res.status(200).json(stats);
-  } catch (error) {
-    handleError(error, res, "Error fetching admin stats");
+  } catch (error : any) {
+    handleError(error, res, error.message||"Error fetching admin stats");
   }
 };
 
