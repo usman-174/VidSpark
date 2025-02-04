@@ -46,8 +46,6 @@ export const setUser = (
 export const restrictTo =
   (...roles: string[]) => {
     return (req: Request, res: Response, next: NextFunction):any => {
-      console.log("res.locals.user", res.locals.user);
-      console.log("roles", roles);
       
       
       if (!res.locals.user || !roles.includes(res.locals.user.role)) {
