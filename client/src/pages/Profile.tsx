@@ -12,6 +12,9 @@ const Profile: React.FC = () => {
   const [isSending, setIsSending] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [file, setFile] = useState<File | null>(null); 
+  const [uploading, setUploading] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(user?.profileImage || null); 
 
   const inviterId = user?.id; 
 
@@ -34,10 +37,44 @@ const Profile: React.FC = () => {
       setSuccessMessage('Invitation sent successfully!');
       setEmail(''); 
     } catch (error: any) {
-      const errorMsg =error.message|| error.response?.data?.error || 'Error sending invitation. Please try again later.';
+      const errorMsg = error.message || error.response?.data?.error || 'Error sending invitation. Please try again later.';
       setErrorMessage(errorMsg);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axiosInstance.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const imageUrl = response.data.imageUrl;
+      setUploadedImage(imageUrl); 
+      setFile(null); // Clear the file input after upload
+
+      // Optionally, save the image URL to the user's profile in the backend here
+      // You can use an API call to update the user's profile picture
+
+    } catch (error) {
+      setErrorMessage('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -47,7 +84,7 @@ const Profile: React.FC = () => {
         <CardHeader>
           <div className="flex items-center space-x-4">
             <Avatar>
-              <AvatarImage src={user?.profileImage || '/default-avatar.png'} alt="Profile Image" />
+              <AvatarImage src={uploadedImage || '/default-avatar.png'} alt="Profile Image" />
               <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
@@ -56,6 +93,26 @@ const Profile: React.FC = () => {
             </div>
           </div>
         </CardHeader>
+        <CardContent>
+          <Button onClick={() => document.getElementById('file-input')?.click()}>
+            Change Profile Picture
+          </Button>
+          <input 
+            id="file-input" 
+            type="file" 
+            onChange={handleFileChange} 
+            style={{ display: 'none' }}
+            accept="image/*" 
+          />
+          {file && (
+            <div className="mt-2">
+              <p>File Selected: {file.name}</p>
+              <Button onClick={handleImageUpload} disabled={uploading}>
+                {uploading ? 'Uploading...' : 'Upload Image'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <Card className="max-w-md mx-auto mt-6 shadow-lg rounded-lg overflow-hidden">

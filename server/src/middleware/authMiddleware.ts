@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-// Extend Response.locals type
+// Extend Response.locals type to include user
 declare global {
   namespace Express {
     interface Locals {
@@ -17,7 +17,7 @@ export const setUser = (
   req: Request,
   res: Response,
   next: NextFunction
-): any => {
+): void => {  // Middleware function should return void
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -34,21 +34,23 @@ export const setUser = (
         role: decoded.role,
       };
 
-      next();
+      next(); // Call next to continue the chain
     } catch (err) {
-      return res.status(401).json({ message: "Invalid token" });
+      // Instead of returning a Response object, call next with the error
+      return next(new Error("Invalid token"));
     }
   } else {
-    return res.status(401).json({ message: "No token provided" });
+    // Return an error using next instead of res directly
+    return next(new Error("No token provided"));
   }
 };
 
-export const restrictTo =
-  (...roles: string[]) => {
-    return (req: Request, res: Response, next: NextFunction):any => {
-      if (!res.locals.user || !roles.includes(res.locals.user.role)) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      next();
-    };
+// Restrict access to specific roles
+export const restrictTo = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!res.locals.user || !roles.includes(res.locals.user.role)) {
+      return next(new Error("Access denied")); // Use next with error message
+    }
+    next(); // Continue to the next middleware
   };
+};
