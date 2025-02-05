@@ -4,7 +4,7 @@ import axios from "@/api/axiosInstance";
 
 type Role = "USER" | "ADMIN";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   role: Role;
@@ -12,6 +12,7 @@ interface User {
   gender?: string;
   parentId?: string;
   totalCredits?: number;
+  createdAt: string;
 }
 
 interface AuthState {

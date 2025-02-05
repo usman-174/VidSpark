@@ -1,21 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserGrowthData } from "@/types/adminTypes";
 import { Bar } from "react-chartjs-2";
 
-interface GrowthData {
-  dailyGrowth: Array<{
-    date: string;
-    count: number;
-  }>;
-  trends: {
-    total: number;
-    averageDaily: number;
-    usersInFamilyStructure: number;
-  };
-}
+
 
 const GrowthChart = ({ data, loading }: { 
-  data: GrowthData | null;
+  data: UserGrowthData | null;
   loading: boolean;
 }) => {
   if (loading) {

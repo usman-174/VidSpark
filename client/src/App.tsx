@@ -52,6 +52,9 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/videos" element={<YTVideos />} />
+            {/* Packages */}
+            <Route path="/admin/packages" element={<PackagesPage />} />
+            <Route path="/admin/users" element={<UsersPage />} />
           </Route>
         </Route>
       </Routes>
@@ -71,6 +74,8 @@ import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import YTVideos from "./pages/Admin/YTVideos";
+import PackagesPage from "./pages/Admin/Packages";
+import UsersPage from "./pages/Admin/Users";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

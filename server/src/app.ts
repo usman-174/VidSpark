@@ -7,6 +7,8 @@ import authRoutes from "./routes/authRoutes";
 import { restrictTo, setUser } from "./middleware/authMiddleware";
 import ytRouter from "./routes/ytRoutes";
 import adminRouter from "./routes/adminRoutes";
+import packageRouter from "./routes/packageRoutes";
+import userRouter from "./routes/userRoutes";
 dotenv.config();
 
 const app = express();
@@ -23,7 +25,7 @@ app.use(
 
 // Health check
 
-app.get("/health", (req, res) => {
+app.get("/health", (_, res) => {
   res.status(200).json({ message: "Server is running" });
 });
 
@@ -35,7 +37,8 @@ app.use("/api/invitations", setUser, restrictTo("USER"), invitationRoutes);
 // Scraper route
 app.use("/api/videos", setUser, restrictTo("ADMIN"), ytRouter);
 app.use("/api/admin", setUser, restrictTo("ADMIN"), adminRouter);
-
+app.use("/api/packages", setUser, restrictTo("ADMIN"), packageRouter);
+app.use("/api/users", setUser, restrictTo("ADMIN"), userRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

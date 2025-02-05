@@ -1,28 +1,24 @@
-import axios from "@/api/axiosInstance";
 import GrowthChart from "@/components/admin/GrowthChart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AdminStats,
   CreditStats,
   DomainStats,
-  InvitationStats,
+  InvitationStats
 } from "@/types/adminTypes";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
+  ArcElement,
   BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
   Title,
   Tooltip,
-  ArcElement,
-  Legend,
 } from "chart.js";
 import { Star, UserPlus, Users, UsersIcon } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Pie } from "react-chartjs-2";
-import { Link } from "react-router-dom";
 
 // Register ChartJS components
 ChartJS.register(
@@ -285,62 +281,48 @@ const DomainDistributionCard = ({
 };
 
 // Main Dashboard Component
+// src/pages/admin/DashboardPage.tsx
+import { adminAPI } from "@/api/adminApi";
+import { useQuery } from "@tanstack/react-query";
+
 export const AdminDashboard = () => {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [invitations, setInvitations] = useState<InvitationStats | null>(null);
-  const [credits, setCredits] = useState<CreditStats | null>(null);
-  const [userGrowth, setUserGrowth] = useState<{
-    dailyGrowth: Array<{ date: string; count: number }>;
-    trends: {
-      total: number;
-      averageDaily: number;
-      usersInFamilyStructure: number;
-    };
-  } | null>(null);
+  const { 
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats
+  } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: adminAPI.getStats
+  });
 
-  const [userDomains, setUserDomains] = useState<DomainStats | null>(null);
+  const { data: invitations, isLoading: invitationsLoading } = useQuery({
+    queryKey: ['admin', 'invitations'],
+    queryFn: adminAPI.getInvitations
+  });
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: credits, isLoading: creditsLoading } = useQuery({
+    queryKey: ['admin', 'credits'],
+    queryFn: adminAPI.getCredits
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const { data: userGrowth, isLoading: growthLoading } = useQuery({
+    queryKey: ['admin', 'growth'],
+    queryFn: adminAPI.getUserGrowth
+  });
 
-        const [statsRes, invRes, creditRes, growthRes, domainRes] =
-          await Promise.all([
-            axios.get("/admin/stats"),
-            axios.get("/admin/invitations"),
-            axios.get("/admin/credits"),
-            axios.get("/admin/user-growth"),
-            axios.get("/admin/user-domains"),
-          ]);
+  const { data: userDomains, isLoading: domainsLoading } = useQuery({
+    queryKey: ['admin', 'domains'],
+    queryFn: adminAPI.getUserDomains
+  });
 
-        setStats(statsRes.data);
-        setInvitations(invRes.data);
-        setCredits(creditRes.data);
-        setUserGrowth(growthRes.data);
-        console.log("Domain data:", domainRes.data);
+  const isLoading = statsLoading || invitationsLoading || creditsLoading || growthLoading || domainsLoading;
 
-        setUserDomains(domainRes.data);
-      } catch (err) {
-        console.error("Failed to fetch dashboard data:", err);
-        setError("Failed to load dashboard data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  if (error) {
+  if (statsError) {
     return (
       <div className="p-6 text-center">
-        <div className="text-red-500 mb-4">{error}</div>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <div className="text-red-500 mb-4">Failed to load dashboard data</div>
+        <Button onClick={() => refetchStats()}>Retry</Button>
       </div>
     );
   }
@@ -349,9 +331,7 @@ export const AdminDashboard = () => {
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <Link to="/admin/videos">
-          <Button variant="outline">View Videos</Button>
-        </Link>
+       
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -359,38 +339,39 @@ export const AdminDashboard = () => {
           title="Total Users"
           value={stats?.totalUsers}
           icon={Users}
-          loading={loading}
+          loading={isLoading}
           subtitle={`${stats?.userGrowthRate}% growth rate`}
         />
         <StatCard
           title="Users with Children"
           value={stats?.usersWithChildren}
           icon={UsersIcon}
-          loading={loading}
+          loading={isLoading}
         />
         <StatCard
           title="New Users Today"
           value={stats?.newUsersToday}
           icon={UserPlus}
-          loading={loading}
+          loading={isLoading}
         />
         <StatCard
           title="Admin Users"
           value={stats?.activeAdminUsers}
           icon={Star}
-          loading={loading}
+          loading={isLoading}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <InvitationsCard data={invitations} loading={loading} />
-        <CreditsCard data={credits} loading={loading} />
+        <InvitationsCard data={invitations!} loading={isLoading} />
+        <CreditsCard data={credits!} loading={isLoading} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <GrowthChart data={userGrowth} loading={loading} />
-        <DomainDistributionCard data={userDomains} loading={loading} />
+        <GrowthChart data={userGrowth!} loading={isLoading} />
+        <DomainDistributionCard data={userDomains!} loading={isLoading} />
       </div>
     </div>
   );
 };
+
