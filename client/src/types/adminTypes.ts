@@ -5,6 +5,14 @@ export interface AdminStats {
   usersWithChildren: number;
   userGrowthRate: number;
 }
+export interface UserGrowthData {
+  dailyGrowth: Array<{ date: string; count: number }>;
+  trends: {
+    total: number;
+    averageDaily: number;
+    usersInFamilyStructure: number;
+  };
+}
 
 export interface InvitationStats {
   totalInvitations: number;
