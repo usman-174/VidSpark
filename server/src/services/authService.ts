@@ -181,6 +181,7 @@ export const getUser = async (userId: string) => {
       role: true,
       createdAt: true,
       parent: true,
+      profileImage: true,
       // if you also want to see each Credit record, uncomment below
       // credits: {
       //   select: {
