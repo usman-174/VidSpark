@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { uploadImageAndSave } from "../services/uploadService";
 
-export const uploadProfileImage = async (req: Request, res: Response) => {
+export const uploadProfileImage = async (req: Request, res: Response):Promise<any> => {
   try {
     const user = res.locals.user;
     if (!user) return res.status(401).json({ error: "Unauthorized" });
