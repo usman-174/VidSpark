@@ -53,21 +53,22 @@ export const scrapeVideos = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 export const getAllVideos = async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1; // Default to page 1
-    const limit = parseInt(req.query.limit as string) || 10; // Default limit to 10
+    const page = parseInt(req.query.page as string) || 1;
+    const limitOptions = [10, 20, 50, 100];
+    const limit = limitOptions.includes(parseInt(req.query.limit as string))
+      ? parseInt(req.query.limit as string)
+      : 10; // Default limit to 10
     const skip = (page - 1) * limit;
 
-    // Get total video count for metadata
     const totalVideos = await prisma.video.count();
     const totalPages = Math.ceil(totalVideos / limit);
 
     const videos = await prisma.video.findMany({
       skip,
       take: limit,
-      orderBy: { trendingDate: "desc" }, // Latest trending first,
+      orderBy: { trendingDate: "desc" },
       include: { category: true },
     });
 
@@ -124,10 +125,13 @@ export const updateVideo = async (req: Request, res: Response) => {
 export const deleteVideo = async (req: Request, res: Response) => {
   try {
     await prisma.video.delete({
-      where: { id: req.params.id },
+      where: { videoId: req.params.id },
     });
+    
     res.status(204).send();
   } catch (error: any) {
+    console.log("Error deleting video:", error.message);
+    
     res.status(500).json({ error: error.message });
   }
 };

@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
-import axios from "@/api/axiosInstance";
-import { toast } from "react-hot-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactPaginate from "react-paginate";
+import { useSearchParams } from "react-router-dom";
+
+import { videosAPI } from "@/api/videoApi";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -10,207 +12,191 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
-interface Video {
-  videoId: string;
-  title: string;
-  channelTitle: string;
-  thumbnailLink: string;
-  viewCount: number;
-  likes?: number;
-  commentCount?: number;
-  publishedAt?: string; // or Date, depending on your response
-  category?: {
-    title: string;
-  };
-}
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
-const YTVideos: React.FC = () => {
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+export default function YTVideosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const limit = parseInt(searchParams.get("limit") || "10", 10);
 
-  // Fetch videos with pagination
-  const fetchVideos = async (pageNumber: number) => {
-    setLoading(true);
-    try {
-      const { data } = await axios.get(`/videos?page=${pageNumber}&limit=10`);
-      setVideos(data.videos);
-      setTotalPages(data.metadata.totalPages);
-      setError(null);
-    } catch (err: any) {
-       
-        
-      setError(err.response?.data.error || "Failed to fetch videos");
-      toast.error(err.response?.data.error || "Failed to fetch videos");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isLoading } = useQuery({
+    queryKey: ["videos", page, limit],
+    queryFn: () => videosAPI.getVideos({ page, limit }),
+  });
 
-  useEffect(() => {
-    fetchVideos(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  const deleteMutation = useMutation({
+    mutationFn: videosAPI.deleteVideo,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      toast({ title: "Video deleted successfully" });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to delete video",
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Delete a video
-  const handleDelete = async (videoId: string) => {
-    try {
-      await axios.delete(`/videos/${videoId}`);
-      toast.success("Video deleted successfully");
-      // Refresh current page
-      fetchVideos(page);
-    } catch (err) {
-      toast.error("Failed to delete video");
-    }
-  };
+  const scrapeMutation = useMutation({
+    mutationFn: videosAPI.scrapeVideos,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      toast({ title: "Videos scraped successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: error.response?.data.error || "Failed to scrape videos",
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Scrape new videos
-  const handleScrape = async () => {
-    try {
-      setLoading(true);
-      await axios.post("/videos/scrape");
-      toast.success("Videos scraped successfully");
-      // Re-fetch current page after scraping
-      fetchVideos(page);
-    } catch (err:any) {
-      toast.error(err.response?.data.error || "Failed to scrape videos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Convert published date to a readable string
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    const dateObj = new Date(dateString);
-    return dateObj.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+  const handlePageChange = ({ selected }: { selected: number }) => {
+    setSearchParams({
+      page: (selected + 1).toString(),
+      limit: limit.toString(),
     });
+  };
+
+  const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSearchParams({
+      page: "1",
+      limit: e.target.value,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
+
+  const { videos, metadata } = data || {
+    videos: [],
+    metadata: { totalVideos: 0, currentPage: 1, totalPages: 1, pageSize: 10 },
   };
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      {/* Header & Scrape button */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">YouTube Videos</h2>
-        <Button onClick={handleScrape} disabled={loading}>
-          {loading ? "Scraping..." : "Scrape Videos"}
+        <Button
+          onClick={() => scrapeMutation.mutate()}
+          disabled={scrapeMutation.isPending}
+        >
+          {scrapeMutation.isPending ? "Scraping..." : "Scrape Videos"}
         </Button>
       </div>
 
-      {/* Main Content Area */}
-      {loading && !videos.length ? (
-        <p className="text-center">Loading videos...</p>
-      ) : error ? (
-        <p className="text-center text-red-500">{error}</p>
-      ) : videos.length === 0 ? (
-        <p className="text-center">No videos available.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">Thumbnail</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Channel</TableHead>
-              <TableHead>Published At</TableHead>
-              <TableHead>Likes</TableHead>
-              <TableHead>Comments</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Views</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {videos.map((video) => (
-              <TableRow key={video.videoId}>
-                <TableCell>
-                  <img
-                    src={video.thumbnailLink}
-                    alt={video.title}
-                    className="h-16 w-28 object-cover rounded-md"
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{video.title}</TableCell>
-                <TableCell>{video.channelTitle}</TableCell>
-                <TableCell>{formatDate(video.publishedAt)}</TableCell>
-                <TableCell>{video.likes ?? 0}</TableCell>
-                <TableCell>{video.commentCount ?? 0}</TableCell>
-                <TableCell>{video.category?.title ?? "N/A"}</TableCell>
-                <TableCell className="text-right">
-                  {video.viewCount.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(video.videoId)}
-                  >
-                    Delete
-                  </Button>
-                  <a
-                    href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="outline" size="sm">
-                      Watch
-                    </Button>
-                  </a>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {metadata.currentPage} of {metadata.totalPages} pages (Total{" "}
+          {metadata.totalVideos} videos)
+        </p>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium">Items per page:</label>
+          <select
+            className="border rounded-md p-2"
+            value={limit}
+            onChange={handleLimitChange}
+          >
+            {ITEMS_PER_PAGE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Thumbnail</TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead>Channel</TableHead>
+            <TableHead>Published</TableHead>
+            <TableHead>Likes</TableHead>
+            <TableHead>Comments</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead className="text-right">Views</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {videos.map((video) => (
+            <TableRow key={video.videoId}>
+              <TableCell>
+                <img
+                  src={video.thumbnailLink}
+                  alt={video.title}
+                  className="h-16 w-28 object-cover rounded-md"
+                />
+              </TableCell>
+              <TableCell className="font-medium">{video.title}</TableCell>
+              <TableCell>{video.channelTitle}</TableCell>
+              <TableCell>
+                {video.publishedAt
+                  ? new Date(video.publishedAt).toLocaleDateString()
+                  : "N/A"}
+              </TableCell>
+              <TableCell>{video.likes ?? 0}</TableCell>
+              <TableCell>{video.commentCount ?? 0}</TableCell>
+              <TableCell>{video.category?.title ?? "N/A"}</TableCell>
+              <TableCell className="text-right">
+                {video.viewCount.toLocaleString()}
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => deleteMutation.mutate(video.videoId)}
+                  disabled={deleteMutation.isPending}
+                >
+                  Delete
+                </Button>
+                <a
+                  href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline" size="sm">
+                    Watch
+                  </Button>
+                </a>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      {metadata.totalPages > 1 && (
         <div className="flex flex-col items-center justify-center gap-3 pt-4">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage(1)}
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((prev) => prev - 1)}
-            >
-              Previous
-            </Button>
-            <span className="mx-2 text-sm font-semibold">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => setPage((prev) => prev + 1)}
-            >
-              Next
-            </Button>
-            <Button
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => setPage(totalPages)}
-            >
-              Last
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Showing page {page} of {totalPages}
-          </p>
+          <ReactPaginate
+            pageCount={metadata.totalPages}
+            pageRangeDisplayed={5}
+            marginPagesDisplayed={2}
+            onPageChange={handlePageChange}
+            containerClassName="flex space-x-2"
+            activeClassName="bg-blue-500 text-white"
+            pageClassName="px-3 py-1 border rounded"
+            previousClassName="px-3 py-1 border rounded"
+            nextClassName="px-3 py-1 border rounded"
+            breakClassName="px-3 py-1 border rounded"
+            disabledClassName="opacity-50 cursor-not-allowed"
+            forcePage={page - 1}
+          />
         </div>
       )}
     </div>
   );
-};
-
-export default YTVideos;
+}

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { franc } from "franc";
 import axios from "axios";
 
 const prisma = new PrismaClient();
@@ -61,9 +62,6 @@ function parseISO8601Duration(durationStr: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-/**
- * Sanitizes a string.
- */
 function prepareFeature(feature: any): string {
   return feature
     ? feature
@@ -72,7 +70,6 @@ function prepareFeature(feature: any): string {
         .trim()
     : "";
 }
-
 /**
  * Fetch latest videos using `order=date` and `publishedAfter`.
  */
@@ -100,18 +97,33 @@ export async function fetchYouTubeData(pageToken: string | null) {
       select: { publishedAt: true },
     });
 
+    // Fixed date for initial fetch from past
     const lastPublishedDate = latestVideo
       ? latestVideo.publishedAt.toISOString()
-      : "2025-01-30T00:00:00Z";
+      : "1970-01-01T00:00:00Z"; // Fixed from future date to past date
 
-    const url = `https://www.googleapis.com/youtube/v3/search?part=id,snippet&type=video&maxResults=50&order=date&regionCode=PK&publishedAfter=${lastPublishedDate}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/search?part=id,snippet&type=video&maxResults=50&order=date&regionCode=PK&relevanceLanguage=en&publishedAfter=${lastPublishedDate}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
+
+      // Filter videos with English titles
+      const filteredItems = response.data.items.filter((item: any) => {
+        const title = item.snippet.title;
+        // Detect language with minimum confidence
+        const resultLang = franc(title, { minLength: 3 });
+        const allowedLangs = ["eng", "urd"];
+        return allowedLangs.includes(resultLang);
+      });
+
       console.log(
-        `Fetched ${response.data.items.length} videos using API key ${apiKey}`
+        `Fetched ${filteredItems.length} videos (from ${response.data.items.length} results) using API key ${apiKey}`
       );
-      return response.data;
+
+      return {
+        ...response.data,
+        items: filteredItems,
+      };
     } catch (error: any) {
       const errorCode =
         error.response?.data?.error?.errors?.[0]?.reason || "unknown";
@@ -130,7 +142,6 @@ export async function fetchYouTubeData(pageToken: string | null) {
     }
   }
 }
-
 /**
  * Fetch video details by video IDs to get `contentDetails` (duration).
  */

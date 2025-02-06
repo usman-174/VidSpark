@@ -1,7 +1,12 @@
-import axios from "@/api/axiosInstance";
+import GrowthChart from "@/components/admin/GrowthChart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserDomainStats } from "@/types/adminTypes";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  CreditStats,
+  DomainStats,
+  InvitationStats
+} from "@/types/adminTypes";
 import {
   ArcElement,
   BarElement,
@@ -12,33 +17,10 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
-import { useEffect, useState } from "react";
-import { Bar, Pie } from "react-chartjs-2";
-import { Link } from "react-router-dom";
+import { Star, UserPlus, Users, UsersIcon } from "lucide-react";
+import { Pie } from "react-chartjs-2";
 
-interface AdminStats {
-  totalUsers: number;
-  activeUsers: number;
-  newUsersToday: number;
-}
-
-interface InvitationStats {
-  totalInvitations: number;
-  usedInvitations: number;
-  pendingInvitations: number;
-}
-
-interface CreditStats {
-  totalCreditsGiven: number;
-  policyStats: { type: string; credits: number }[];
-}
-
-interface UserGrowthData {
-  date: string;
-  count: number;
-}
-
-// Register required components
+// Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -49,193 +31,347 @@ ChartJS.register(
   Legend
 );
 
-export const AdminDashboard = () => {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [invitations, setInvitations] = useState<InvitationStats | null>(null);
-  const [credits, setCredits] = useState<CreditStats | null>(null);
-  const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
-  const [userDomains, setUserDomains] = useState<UserDomainStats[]>([]);
-  const [loading, setLoading] = useState(true);
+// Stat Card Component
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  loading,
+  subtitle,
+}: {
+  title: string;
+  value: number | undefined;
+  icon: React.ElementType;
+  loading: boolean;
+  subtitle?: string;
+}) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardTitle className="text-sm font-medium text-gray-600">
+        {title}
+      </CardTitle>
+      <Icon className="h-4 w-4 text-gray-500" />
+    </CardHeader>
+    <CardContent>
+      {loading ? (
+        <Skeleton className="h-8 w-24" />
+      ) : (
+        <>
+          <div className="text-2xl font-bold text-gray-900">
+            {value?.toLocaleString()}
+          </div>
+          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        </>
+      )}
+    </CardContent>
+  </Card>
+);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, invRes, creditRes, growthRes,domainRes] = await Promise.all([
-          axios.get("/admin/stats"),
-          axios.get("/admin/invitations"),
-          axios.get("/admin/credits"),
-          axios.get("/admin/user-growth"),
-          axios.get("/admin/user-domains"),
-        ]);
+// Invitations Card Component
+const InvitationsCard = ({
+  data,
+  loading,
+}: {
+  data: InvitationStats | null;
+  loading: boolean;
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-lg">Invitation Insights</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {loading ? (
+        Array(3)
+          .fill(0)
+          .map((_, i) => <Skeleton key={i} className="h-4 w-full" />)
+      ) : (
+        <>
+          <div className="space-y-2">
+            {[
+              { label: "Total Invitations", value: data?.totalInvitations },
+              { label: "Used Invitations", value: data?.usedInvitations },
+              { label: "Conversion Rate", value: `${data?.conversionRate}%` },
+            ]?.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center">
+                <span className="text-gray-600">{item.label}</span>
+                <span className="font-medium">{item.value}</span>
+              </div>
+            ))}
+          </div>
+          {data?.topInviters && data.topInviters.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="text-sm font-medium mb-3">Top Inviters</h3>
+              <div className="space-y-2">
+                {data.topInviters?.map((inviter, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-sm"
+                  >
+                    <span className="text-gray-600 truncate max-w-[200px]">
+                      {inviter.email}
+                    </span>
+                    <span className="font-medium">
+                      {inviter.invitationsSent}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </CardContent>
+  </Card>
+);
 
-        setStats(statsRes.data);
-        setInvitations(invRes.data);
-        setCredits(creditRes.data);
-        setUserGrowth(growthRes.data);
-        setUserDomains(domainRes.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+// Credits Card Component
+const CreditsCard = ({
+  data,
+  loading,
+}: {
+  data: CreditStats | null;
+  loading: boolean;
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-lg">Credit Distribution</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {loading ? (
+        Array(3)
+          .fill(0)
+          .map((_, i) => <Skeleton key={i} className="h-4 w-full" />)
+      ) : (
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Total Credits Given</span>
+            <span className="font-medium">{data?.totalCreditsGiven}</span>
+          </div>
+          {data?.creditsByPolicyType.map((policy, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <span className="text-gray-600">{policy.type}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{policy.credits}</span>
+                <span className="text-sm text-gray-500">
+                  ({data.policyStats[index]?.userCount} users)
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
 
-    fetchData();
-  }, []);
-
+// Domain Distribution Component
+interface DomainDistributionCardProps {
+  data: DomainStats | null;
+  loading: boolean;
+}
+const DomainDistributionCard = ({
+  data,
+  loading,
+}: DomainDistributionCardProps) => {
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Domain Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            <Skeleton className="h-full w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  console.log("data", data);
+  
+  if (!data?.domains || data.domains.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Domain Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex items-center justify-center text-gray-500">
+            No domain data available
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
-  const userGrowthData = {
-    labels: userGrowth.map((entry) =>
-      new Date(entry.date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
+  const chartData = {
+    labels: data?.domains?.map(
+      (entry) => `${entry.domain} (${entry.percentage}%)`
     ),
     datasets: [
       {
-        label: "New Users",
-        data: userGrowth.map((entry) => entry.count),
-        backgroundColor: "rgba(99, 102, 241, 0.7)", // Softer purple
-        borderRadius: 6,
-        barThickness: 30, // Reduce bar thickness
+        data: data?.domains?.map((entry) => entry.count),
+        backgroundColor: [
+          "#6366F1",
+          "#F59E0B",
+          "#10B981",
+          "#EF4444",
+          "#8B5CF6",
+          "#3B82F6",
+          "#F472B6",
+          "#34D399",
+          "#EC4899",
+          "#14B8A6",
+        ],
+        borderWidth: 1,
       },
     ],
   };
 
-  const options = {
+  const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "top",
+        position: "right" as const,
         labels: {
-          font: { size: 12 },
+          font: { size: 11 },
+          padding: 12,
+          generateLabels: function (chart: any) {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              return data?.labels?.map((label: string, i: number) => ({
+                text: label,
+                fillStyle: data.datasets[0].backgroundColor[i],
+                index: i,
+              }));
+            }
+            return [];
+          },
         },
       },
       tooltip: {
         callbacks: {
-          label: (tooltipItem: any) => ` New Users: ${tooltipItem.raw}`,
+          label: (context: any) => {
+            const value = context.raw;
+            return `Users: ${value}`;
+          },
         },
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          font: { size: 12 }, // Smaller text
-          color: "#6b7280",
-        },
-        grid: { display: false },
-      },
-      y: {
-        ticks: { font: { size: 12 } },
-        grid: { color: "rgba(0,0,0,0.1)" },
       },
     },
   };
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-      <Link to="/admin/videos">
-        <Button>View Videos</Button>
-      </Link>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center justify-between">
+          <span>Domain Distribution</span>
+          <div className="text-sm font-normal text-gray-500">
+            {data.stats.totalDomains} domains total
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-64">
+          <Pie data={chartData} options={chartOptions} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{stats?.totalUsers}</p>
-          </CardContent>
-        </Card>
+// Main Dashboard Component
+// src/pages/admin/DashboardPage.tsx
+import { adminAPI } from "@/api/adminApi";
+import { useQuery } from "@tanstack/react-query";
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{stats?.activeUsers}</p>
-          </CardContent>
-        </Card>
+export const AdminDashboard = () => {
+  const { 
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats
+  } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: adminAPI.getStats
+  });
 
-        <Card>
-          <CardHeader>
-            <CardTitle>New Users Today</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{stats?.newUsersToday}</p>
-          </CardContent>
-        </Card>
+  const { data: invitations, isLoading: invitationsLoading } = useQuery({
+    queryKey: ['admin', 'invitations'],
+    queryFn: adminAPI.getInvitations
+  });
+
+  const { data: credits, isLoading: creditsLoading } = useQuery({
+    queryKey: ['admin', 'credits'],
+    queryFn: adminAPI.getCredits
+  });
+
+  const { data: userGrowth, isLoading: growthLoading } = useQuery({
+    queryKey: ['admin', 'growth'],
+    queryFn: adminAPI.getUserGrowth
+  });
+
+  const { data: userDomains, isLoading: domainsLoading } = useQuery({
+    queryKey: ['admin', 'domains'],
+    queryFn: adminAPI.getUserDomains
+  });
+
+  const isLoading = statsLoading || invitationsLoading || creditsLoading || growthLoading || domainsLoading;
+
+  if (statsError) {
+    return (
+      <div className="p-6 text-center">
+        <div className="text-red-500 mb-4">Failed to load dashboard data</div>
+        <Button onClick={() => refetchStats()}>Retry</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+       
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Invitation Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Total Invitations: {invitations?.totalInvitations}</p>
-            <p>Used Invitations: {invitations?.usedInvitations}</p>
-            <p>Pending Invitations: {invitations?.pendingInvitations}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Credit Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Total Credits Given: {credits?.totalCreditsGiven}</p>
-            {credits?.policyStats.map((policy, index) => (
-              <p key={index}>
-                {policy.type}: {policy.credits} credits
-              </p>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Users"
+          value={stats?.totalUsers}
+          icon={Users}
+          loading={isLoading}
+          subtitle={`${stats?.userGrowthRate}% growth rate`}
+        />
+        <StatCard
+          title="Users with Children"
+          value={stats?.usersWithChildren}
+          icon={UsersIcon}
+          loading={isLoading}
+        />
+        <StatCard
+          title="New Users Today"
+          value={stats?.newUsersToday}
+          icon={UserPlus}
+          loading={isLoading}
+        />
+        <StatCard
+          title="Admin Users"
+          value={stats?.activeAdminUsers}
+          icon={Star}
+          loading={isLoading}
+        />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Growth</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <Bar
-            key={JSON.stringify(userGrowthData)}
-            data={userGrowthData}
-            options={options as any}
-          />
-        </CardContent>
-      </Card>
-       {/* User Domain Insights Pie Chart */}
-       <Card className="w-full md:w-2/3 mx-auto">
-        <CardHeader>
-          <CardTitle>User Domain Insights</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[300px] flex items-center justify-center">
-          <Pie 
-            data={{
-              labels: userDomains.map((entry) => entry.domain),
-              datasets: [{
-                label: "Users by Domain",
-                data: userDomains.map((entry) => entry.count),
-                backgroundColor: ["#6366F1", "#F59E0B", "#10B981", "#EF4444", "#8B5CF6", "#3B82F6", "#F472B6", "#34D399"],
-                borderWidth: 1,
-              }],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { position: "right" },
-              },
-            }}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <InvitationsCard data={invitations!} loading={isLoading} />
+        <CreditsCard data={credits!} loading={isLoading} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <GrowthChart data={userGrowth!} loading={isLoading} />
+        <DomainDistributionCard data={userDomains!} loading={isLoading} />
+      </div>
     </div>
   );
 };
+

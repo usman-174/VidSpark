@@ -4,6 +4,8 @@ import express from "express";
 import morgan from "morgan";
 import { restrictTo, setUser } from "./middleware/authMiddleware";
 import adminRouter from "./routes/adminRoutes";
+import packageRouter from "./routes/packageRoutes";
+import userRouter from "./routes/userRoutes";
 import authRoutes from "./routes/authRoutes";
 import invitationRoutes from "./routes/invitationRoutes";
 import uploadRoutes from "./routes/uploadRoute";
@@ -35,6 +37,8 @@ app.use("/api/invitations", setUser, restrictTo("USER"), invitationRoutes);
 // Video scraping and admin routes
 app.use("/api/videos", setUser, restrictTo("ADMIN"), ytRouter);
 app.use("/api/admin", setUser, restrictTo("ADMIN"), adminRouter);
+app.use("/api/packages", setUser, restrictTo("ADMIN"), packageRouter);
+app.use("/api/users", setUser, restrictTo("ADMIN"), userRouter);
 app.use("/api/uploads", setUser, restrictTo("USER"), uploadRoutes);
 
 // Start server
