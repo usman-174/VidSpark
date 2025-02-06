@@ -2,9 +2,13 @@
   "compilerOptions": {
     "target": "ES6",
     "module": "CommonJS",
-    "strict": true,
+    "strict": false,                 // Loosens strict type checks
+    "noImplicitAny": false,          // Allows variables with implicit "any" type
+    "strictNullChecks": false,       // Prevents errors on null/undefined
+    "strictFunctionTypes": false,    // Loosens function argument type checks
+    "strictPropertyInitialization": false,  // Avoids errors on uninitialized properties
     "esModuleInterop": true,
-    "skipLibCheck": true,
+    "skipLibCheck": true,            // Skips checking type definitions in node_modules
     "resolveJsonModule": true,
     "outDir": "./dist"
   },

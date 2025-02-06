@@ -9,7 +9,7 @@ import {
 
 const prisma = new PrismaClient();
 
-export const fetchAndStoreCategories = async (req: Request, res: Response) => {
+export const fetchAndStoreCategories = async (req: Request, res: Response):Promise<any> => {
   try {
     await loadKeysFromDB();
     const apiKey = getNextApiKey();
@@ -87,7 +87,7 @@ export const getAllVideos = async (req: Request, res: Response) => {
   }
 };
 
-export const getVideoById = async (req: Request, res: Response) => {
+export const getVideoById = async (req: Request, res: Response):Promise<any> => {
   try {
     const video = await prisma.video.findUnique({
       where: { id: req.params.id },

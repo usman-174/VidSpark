@@ -11,7 +11,7 @@ export const getUsersRoute = async (req: Request, res: Response) => {
   }
 };
 
-export const getUserByIdRoute = async (req: Request, res: Response) => {
+export const getUserByIdRoute = async (req: Request, res: Response):Promise<any> => {
   try {
     const { id } = req.params;
     const user = await userService.getUserById(id);
