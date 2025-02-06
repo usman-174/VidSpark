@@ -1,18 +1,20 @@
-import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
+import dotenv from "dotenv";
+import express from "express";
 import morgan from "morgan";
-import invitationRoutes from "./routes/invitationRoutes";
-import authRoutes from "./routes/authRoutes";
 import { restrictTo, setUser } from "./middleware/authMiddleware";
-import ytRouter from "./routes/ytRoutes";
 import adminRouter from "./routes/adminRoutes";
 import packageRouter from "./routes/packageRoutes";
 import userRouter from "./routes/userRoutes";
-dotenv.config();
+import authRoutes from "./routes/authRoutes";
+import invitationRoutes from "./routes/invitationRoutes";
+import uploadRoutes from "./routes/uploadRoute";
+import ytRouter from "./routes/ytRoutes";
 
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
+
 
 app.use(express.json());
 app.use(morgan("dev"));
@@ -23,23 +25,23 @@ app.use(
   })
 );
 
-// Health check
-
-app.get("/health", (_, res) => {
+// Health check endpoint
+app.get("/health", (req, res) => {
   res.status(200).json({ message: "Server is running" });
 });
 
+// Authentication and invitation routes
 app.use("/api/auth", authRoutes);
-
-// Register routes
 app.use("/api/invitations", setUser, restrictTo("USER"), invitationRoutes);
 
-// Scraper route
+// Video scraping and admin routes
 app.use("/api/videos", setUser, restrictTo("ADMIN"), ytRouter);
 app.use("/api/admin", setUser, restrictTo("ADMIN"), adminRouter);
 app.use("/api/packages", setUser, restrictTo("ADMIN"), packageRouter);
 app.use("/api/users", setUser, restrictTo("ADMIN"), userRouter);
+app.use("/api/uploads", setUser, restrictTo("USER"), uploadRoutes);
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(` Server running on http://localhost:${PORT}`);
 });
