@@ -119,7 +119,17 @@ export const login = async (email: string, password: string) => {
     throw new Error("Invalid email or password");
   }
   user.password = undefined as any;
-  return { user, token: generateToken(user.id, user.role) };
+  const totalCredits = await prisma.credit.aggregate({
+    where: { userId: user.id },
+    _sum: {
+      credits: true,
+    },
+  });
+
+  return {
+    user: { ...user, totalCredits: totalCredits._sum.credits ?? 0 },
+    token: generateToken(user.id, user.role),
+  };
 };
 
 export const resetPasswordService = async (
