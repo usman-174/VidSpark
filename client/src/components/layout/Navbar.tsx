@@ -1,13 +1,13 @@
-import { FC } from "react";
-import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { User } from "@/store/authStore";
+import { FC } from "react";
+import { Link } from "react-router-dom";
 
 interface NavbarProps {
   user: User | null;
@@ -16,6 +16,7 @@ interface NavbarProps {
 
 export const Navbar: FC<NavbarProps> = ({ user, logout }) => {
   const isAdmin = user?.role === "ADMIN";
+  
   return (
     <header className="h-16 border-b bg-white">
       <div className="h-full px-6 flex items-center justify-end">

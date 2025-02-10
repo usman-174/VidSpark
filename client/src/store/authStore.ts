@@ -1,6 +1,7 @@
 // src/store/authStore.ts
 import { create } from "zustand";
 import axios from "@/api/axiosInstance";
+import { NavigateFunction } from "react-router-dom";
 
 type Role = "USER" | "ADMIN";
 
@@ -32,8 +33,10 @@ const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem("token", token);
     set({ isAuthenticated: true, user: userData, isLoading: false });
   },
-  logout: () => {
+  logout: (
+  ) => {
     localStorage.removeItem("token");
+    // console.log("navigate");
     set({ isAuthenticated: false, user: null, isLoading: false });
   },
   getCurrentUser: async () => {

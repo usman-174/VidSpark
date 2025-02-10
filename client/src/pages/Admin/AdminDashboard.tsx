@@ -343,7 +343,7 @@ export const AdminDashboard = () => {
           subtitle={`${stats?.userGrowthRate}% growth rate`}
         />
         <StatCard
-          title="Users with Children"
+          title="Users with Refferals"
           value={stats?.usersWithChildren}
           icon={UsersIcon}
           loading={isLoading}
@@ -354,12 +354,12 @@ export const AdminDashboard = () => {
           icon={UserPlus}
           loading={isLoading}
         />
-        <StatCard
+        {/* <StatCard
           title="Admin Users"
           value={stats?.activeAdminUsers}
           icon={Star}
           loading={isLoading}
-        />
+        /> */}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

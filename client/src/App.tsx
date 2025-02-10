@@ -27,7 +27,7 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" />
 
       <Routes>
         {/* Public routes */}
@@ -37,7 +37,9 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
-
+        {/* Landing page */}
+        <Route path="/landing" element={<Landing/>}/> {/* //Made by Fatima */}
+        
         {/* Protected routes with layout */}
         <Route element={<RootLayout />}>
           {/* Common routes */}
@@ -76,6 +78,7 @@ import Profile from "./pages/Profile";
 import YTVideos from "./pages/Admin/YTVideos";
 import PackagesPage from "./pages/Admin/Packages";
 import UsersPage from "./pages/Admin/Users";
+import Landing from "./pages/Landing";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];
