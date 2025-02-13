@@ -34,16 +34,16 @@ const SidebarLink = ({
   <Link
     to={to}
     className={cn(
-      "flex items-center px-3 py-2 rounded-lg transition-colors",
-      "hover:bg-gray-100",
-      isActive && "bg-gray-100 text-primary"
+      "flex items-center px-4 py-2 rounded-lg transition-colors duration-200",
+      "hover:bg-teal-600", // Darker hover effect
+      isActive && "bg-teal-600 text-white", // Active link highlight
     )}
   >
     <Icon
-      className={cn("w-5 h-5", isActive ? "text-primary" : "text-gray-600")}
+      className={cn("w-5 h-5", isActive ? "text-white" : "text-gray-400")}
     />
     {!isCollapsed && (
-      <span className={cn("ml-3", isActive ? "text-primary" : "text-gray-600")}>
+      <span className={cn("ml-4", isActive ? "text-white" : "text-gray-300")}>
         {label}
       </span>
     )}
@@ -80,18 +80,18 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   return (
     <aside
       className={cn(
-        "h-screen border-r bg-white transition-all duration-300",
+        "h-screen border-r bg-teal-700 text-white transition-all duration-300",
         isCollapsed ? "w-20" : "w-64"
       )}
     >
-      <div className="h-16 border-b flex items-center ">
-        <Link to="/" className="text-center w-full">
+      <div className="h-16 border-b flex items-center px-4">
+        <Link to="/" className="w-full text-center">
           {!isCollapsed ? (
-            <span className="font-semibold text-2xl text-center ">
+            <span className="font-semibold text-2xl text-white">
               VidSpark
             </span>
           ) : (
-            <span className="font-semibold text-2xl text-center ">V</span>
+            <span className="font-semibold text-2xl text-white">V</span>
           )}
         </Link>
       </div>
@@ -104,9 +104,9 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
           onClick={onToggle}
         >
           {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-white" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4 text-white" />
           )}
         </Button>
       </div>
@@ -124,16 +124,18 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         </div>
       </nav>
 
-      <div className="absolute bottom-0 w-full p-4 ">
+      <div className="absolute bottom-0 w-full p-4">
         <div className="flex items-center gap-3">
           <img
             src={user?.profileImage || "/default-avatar.jpg"}
             alt="Profile"
-            className="w-8 h-8 rounded-full  bg-gray-100"
+            className="w-8 h-8 rounded-full bg-gray-700"
           />
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
+              <p className="text-sm font-medium text-white truncate">
+                {user?.email}
+              </p>
             </div>
           )}
         </div>

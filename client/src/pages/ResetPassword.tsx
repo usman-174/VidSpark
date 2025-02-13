@@ -69,11 +69,11 @@ export const ResetPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4">Reset Password</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-500 via-teal-500 to-purple-600">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Reset Password</h2>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {!urlEmail && (
               <FormField
                 name="email"
@@ -82,7 +82,11 @@ export const ResetPassword = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your email" {...field} />
+                      <Input
+                        placeholder="Enter your email"
+                        {...field}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -101,6 +105,7 @@ export const ResetPassword = () => {
                       <Input
                         placeholder="Enter reset code from email"
                         {...field}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                     </FormControl>
                     <FormMessage />
@@ -120,6 +125,7 @@ export const ResetPassword = () => {
                       type="password"
                       placeholder="Enter new password"
                       {...field}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </FormControl>
                   <FormMessage />
@@ -138,6 +144,7 @@ export const ResetPassword = () => {
                       type="password"
                       placeholder="Confirm new password"
                       {...field}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </FormControl>
                   <FormMessage />
@@ -145,15 +152,19 @@ export const ResetPassword = () => {
               )}
             />
 
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition duration-300"
+            >
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
-            {/* Cancel Button */}
+
             <Button
               type="button"
               variant={"secondary"}
               onClick={() => navigate("/login")}
-              className="w-full"
+              className="w-full mt-4"
             >
               Cancel
             </Button>

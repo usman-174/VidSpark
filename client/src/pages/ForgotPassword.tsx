@@ -1,4 +1,3 @@
-// src/pages/ForgotPassword.tsx
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -44,11 +43,11 @@ export const ForgotPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4">Forgot Password</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-500 via-teal-500 to-purple-600">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
+        <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Forgot Password</h2>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               name="email"
               control={form.control}
@@ -56,19 +55,27 @@ export const ForgotPassword = () => {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter your email" {...field} />
+                    <Input
+                      placeholder="Enter your email"
+                      {...field}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <div className="flex flex-col space-y-4">
-              <Button type="submit" disabled={loading}>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition duration-300"
+              >
                 {loading ? "Sending..." : "Send Reset Link"}
               </Button>
               <Link
                 to="/login"
-                className="text-sm text-center text-primary hover:underline"
+                className="text-sm text-center text-teal-600 hover:underline"
               >
                 Back to Login
               </Link>

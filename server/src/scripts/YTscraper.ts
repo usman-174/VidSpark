@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-// import langs from "langs"
 import { franc } from "franc";
 import axios from "axios";
 
@@ -71,6 +70,7 @@ function prepareFeature(feature: any): string {
         .trim()
     : "";
 }
+
 /**
  * Fetch latest videos using `order=date` and `publishedAfter`.
  */
@@ -108,13 +108,13 @@ export async function fetchYouTubeData(pageToken: string | null) {
     try {
       const response = await axios.get(url);
 
-      // Filter videos with English titles
+      // Filter videos with English or Urdu titles
       const filteredItems = response.data.items.filter((item: any) => {
         const title = item.snippet.title;
-        const detectedLang = franc(title, { minLength: 3 });
+        // Detect language with minimum confidence
+        const resultLang = franc(title, { minLength: 3 });
         const allowedLangs = ["eng", "urd"];
-        return detectedLang && allowedLangs.includes(detectedLang);
-        // return allowedLangs.includes(detectedLang);
+        return allowedLangs.includes(resultLang);
       });
 
       console.log(
@@ -143,152 +143,51 @@ export async function fetchYouTubeData(pageToken: string | null) {
     }
   }
 }
+
 /**
- * Fetch video details by video IDs to get `contentDetails` (duration).
+ * Scrape YouTube video details using Video ID
  */
-async function fetchVideoDetails(videoIds: string[]) {
-  let apiKey: string;
+export async function scrapeYouTubeVideo(videoId: string) {
+  let apiKey: string = "";
 
   while (true) {
     try {
       apiKey = getNextApiKey();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching API key:", err);
-      return null;
+      throw new Error("All YouTube API keys have been used or reached their quota.");
     }
 
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(
-      ","
-    )}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
-      return response.data.items;
+      if (!response.data.items.length) {
+        throw new Error("No video found for the given ID.");
+      }
+
+      const videoData = response.data.items[0];
+
+      return {
+        title: prepareFeature(videoData.snippet.title),
+        description: prepareFeature(videoData.snippet.description),
+        channelTitle: prepareFeature(videoData.snippet.channelTitle),
+        publishedAt: videoData.snippet.publishedAt,
+        duration: parseISO8601Duration(videoData.contentDetails.duration),
+        viewCount: parseInt(videoData.statistics.viewCount || "0", 10),
+        likeCount: parseInt(videoData.statistics.likeCount || "0", 10),
+        commentCount: parseInt(videoData.statistics.commentCount || "0", 10),
+      };
     } catch (error: any) {
-      console.error(
-        "Failed to fetch video details:",
-        error.response?.data || error.message
-      );
-      return null;
-    }
-  }
-}
+      const errorCode =
+        error.response?.data?.error?.errors?.[0]?.reason || "unknown";
 
-/**
- * Save new videos to the database (no updates).
- */
-export async function saveVideosToDB(
-  videos: any[],
-  pageToken: string | null
-): Promise<number> {
-  let savedCount = 0;
-
-  // Extract video IDs to fetch full details
-  const videoIds = videos.map((video) => video.id.videoId);
-  const videoDetails = await fetchVideoDetails(videoIds);
-
-  if (!videoDetails) {
-    console.error("Failed to fetch video details. Skipping batch.");
-    return 0;
-  }
-
-  for (const video of videoDetails) {
-    if (!video.statistics) {
-      console.warn(`Video ${video.id} lacks statistics. Skipping.`);
-      continue;
-    }
-
-    const durationSeconds = parseISO8601Duration(
-      video.contentDetails?.duration || ""
-    );
-    if (durationSeconds <= 60) {
-      console.log(
-        `Skipping SHORT video: ${video.id} (Duration: ${durationSeconds}s)`
-      );
-      continue;
-    }
-
-    const categoryExists = await prisma.category.findUnique({
-      where: { categoryId: video.snippet.categoryId },
-    });
-
-    if (!categoryExists) {
-      console.log(
-        `Skipping video ${video.id} — category ${video.snippet.categoryId} not found.`
-      );
-      continue;
-    }
-
-    // Check if video already exists
-    const existingVideo = await prisma.video.findUnique({
-      where: { videoId: video.id },
-    });
-    if (existingVideo) {
-      console.log(`Video ${video.id} already exists. Skipping.`);
-      continue;
-    }
-
-    const data = {
-      videoId: video.id,
-      title: prepareFeature(video.snippet.title),
-      publishedAt: new Date(video.snippet.publishedAt),
-      channelId: video.snippet.channelId,
-      channelTitle: prepareFeature(video.snippet.channelTitle),
-      trendingDate: new Date(),
-      tags: video.snippet.tags?.join("|") || "[none]",
-      viewCount: parseInt(video.statistics.viewCount || "0", 10),
-      likes: parseInt(video.statistics.likeCount || "0", 10),
-      dislikes: parseInt(video.statistics.dislikeCount || "0", 10),
-      commentCount: parseInt(video.statistics.commentCount || "0", 10),
-      thumbnailLink: video.snippet.thumbnails?.default?.url || "",
-      commentsDisabled: !video.statistics.commentCount,
-      ratingsDisabled: !video.statistics.likeCount,
-      description: prepareFeature(video.snippet.description),
-      countryCode: "PK",
-      pageToken,
-      category: { connect: { categoryId: categoryExists.categoryId } },
-    };
-
-    try {
-      await prisma.video.create({ data });
-      console.log(`Inserted new video: ${data.videoId}`);
-      savedCount++;
-    } catch (err) {
-      console.error(`Failed to insert video ${data.videoId}:`, err);
-    }
-  }
-
-  return savedCount;
-}
-
-/**
- * Main function to orchestrate the scraping process.
- */
-export async function scrapeYouTubeData() {
-  try {
-    await loadKeysFromDB();
-
-    let pageToken: string | null = null;
-
-    while (true) {
-      const data = await fetchYouTubeData(pageToken);
-      if (!data || !data.items) {
-        console.error("No data received from YouTube API.");
+      if (errorCode === "quotaExceeded") {
+        console.warn(`API Key ${apiKey} has exceeded its quota. Switching to next key.`);
+      } else {
+        console.error("YouTube API Error:", error.response?.data || error.message);
         return null;
       }
-
-      const savedVideos = await saveVideosToDB(data.items, data.nextPageToken);
-
-      if (savedVideos > 0) {
-        console.log("Scraping completed successfully.");
-        return data.nextPageToken;
-      } else {
-        console.warn("No new videos were saved. Fetching next batch...");
-        pageToken = data.nextPageToken;
-      }
     }
-  } catch (error: any) {
-    console.error("An error occurred during scraping:", error);
-    throw new Error(error.message);
   }
 }
