@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 // import langs from "langs"
-import { franc } from "franc";
+
 import axios from "axios";
 
 const prisma = new PrismaClient();
@@ -74,6 +74,24 @@ function prepareFeature(feature: any): string {
 /**
  * Fetch latest videos using `order=date` and `publishedAfter`.
  */
+const isEnglishTitle = (text: string): boolean => {
+  // Common English patterns
+  const englishPatterns = [
+    /^[a-zA-Z0-9\s\-'".,!?()&|]+$/, // Basic English characters
+    /\b(the|a|an)\s/i, // Articles
+    /\b(in|on|at|by|for|with|to)\s/i, // Common prepositions
+    /\b(is|are|was|were|will|can)\s/i, // Common verbs
+  ];
+
+  // Text must be at least 3 characters
+  if (text.length < 3) return false;
+
+  // Must match basic English character pattern
+  if (!englishPatterns[0].test(text)) return false;
+
+  // Should match at least one English language pattern
+  return englishPatterns.slice(1).some((pattern) => pattern.test(text));
+};
 export async function fetchYouTubeData(pageToken: string | null) {
   let apiKey: string = "";
 
@@ -111,12 +129,8 @@ export async function fetchYouTubeData(pageToken: string | null) {
       // Filter videos with English titles
       const filteredItems = response.data.items.filter((item: any) => {
         const title = item.snippet.title;
-        const detectedLang = franc(title, { minLength: 3 });
-        const allowedLangs = ["eng", "urd"];
-        return detectedLang && allowedLangs.includes(detectedLang);
-        // return allowedLangs.includes(detectedLang);
+        return isEnglishTitle(title);
       });
-
       console.log(
         `Fetched ${filteredItems.length} videos (from ${response.data.items.length} results) using API key ${apiKey}`
       );
