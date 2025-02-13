@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 // import langs from "langs"
-import { franc } from "franc";
+import franc  from "franc";
 import axios from "axios";
 
 const prisma = new PrismaClient();
@@ -111,7 +111,7 @@ export async function fetchYouTubeData(pageToken: string | null) {
       // Filter videos with English titles
       const filteredItems = response.data.items.filter((item: any) => {
         const title = item.snippet.title;
-        const detectedLang = franc(title, { minLength: 3 });
+        const detectedLang = franc.franc(title, { minLength: 3 });
         const allowedLangs = ["eng", "urd"];
         return detectedLang && allowedLangs.includes(detectedLang);
         // return allowedLangs.includes(detectedLang);
