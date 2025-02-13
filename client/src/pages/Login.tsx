@@ -26,9 +26,9 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login: React.FC = () => {
-  const router = useNavigate();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated } = useAuthStore();
+  const { login } = useAuthStore();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -46,9 +46,9 @@ const Login: React.FC = () => {
       toast.success("Login successful!");
 
       if (data.user.role === "ADMIN") {
-        router("/admin");
+        navigate("/admin");
       } else {
-        router("/");
+        navigate("/");
       }
     } catch (error: any) {
       const errorMessage =
@@ -66,26 +66,35 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left Side - Image */}
-      <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center">
-        <img src={loginImage} alt="Login" className="w-3/4 rounded-lg shadow-lg" />
+    <div className="flex min-h-screen bg-gradient-to-r from-blue-500 to-purple-600">
+      {/* Left Side - Heading */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
+        <div className="text-center text-white">
+          <h1 className="text-5xl font-bold mb-4">Login Page</h1>
+          <p className="text-lg">Welcome back! Please login to your account.</p>
+        </div>
       </div>
 
       {/* Right Side - Login Form */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">Welcome Back!</h2>
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
+            Welcome Back!
+          </h2>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 name="email"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-lg">Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your email" {...field} />
+                      <Input
+                        placeholder="Enter your email"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -96,15 +105,20 @@ const Login: React.FC = () => {
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-lg">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="Enter your password"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm text-gray-600">
                 <p>
                   Don't have an account?{" "}
                   <Link to="/register" className="text-blue-600 hover:underline">
@@ -115,7 +129,11 @@ const Login: React.FC = () => {
                   Forgot Password?
                 </Link>
               </div>
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-300"
+              >
                 {loading ? "Logging in..." : "Login"}
               </Button>
             </form>

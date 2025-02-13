@@ -1,37 +1,16 @@
-import { PrismaClient } from "@prisma/client";
-import axios from "axios";
 import { Request, Response } from "express";
-import {
-  getNextApiKey,
-  loadKeysFromDB,
-  scrapeYouTubeData,
-} from "../scripts/YTscraper";
+import { initializeDependencies } from "../utils/dependencies";
+import * as youtubeService from "../services/ytService";
 
-const prisma = new PrismaClient();
-
-export const fetchAndStoreCategories = async (req: Request, res: Response):Promise<any> => {
+export const fetchAndStoreCategories = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
-    await loadKeysFromDB();
-    const apiKey = getNextApiKey();
-    const url = `https://www.googleapis.com/youtube/v3/videoCategories?part=snippet&regionCode=PK&key=${apiKey}`;
-    const response = await axios.get(url);
-    const categories = response.data.items;
-
-    if (!categories || categories.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No categories found from YouTube API" });
-    }
-
-    for (const category of categories) {
-      await prisma.category.upsert({
-        where: { categoryId: category.id },
-        update: { title: category.snippet.title },
-        create: { categoryId: category.id, title: category.snippet.title },
-      });
-    }
-
-    res.status(200).json({ message: "Categories populated successfully!" });
+    const categories = await youtubeService.fetchCategories();
+    res
+      .status(200)
+      .json({ message: "Categories populated successfully!", categories });
   } catch (error: any) {
     console.error(
       "Error fetching YouTube categories:",
@@ -45,50 +24,45 @@ export const fetchAndStoreCategories = async (req: Request, res: Response):Promi
 
 export const scrapeVideos = async (req: Request, res: Response) => {
   try {
-    await scrapeYouTubeData();
+    await youtubeService.scrapeYouTubeVideos();
     res.status(200).json({ message: "Scraping complete" });
   } catch (error: any) {
     console.log("Error scraping videos:", error.message);
-
     res.status(500).json({ error: error.message });
   }
 };
+
 export const getAllVideos = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limitOptions = [10, 20, 50, 100];
     const limit = limitOptions.includes(parseInt(req.query.limit as string))
       ? parseInt(req.query.limit as string)
-      : 10; // Default limit to 10
-    const skip = (page - 1) * limit;
+      : 10;
 
-    const totalVideos = await prisma.video.count();
-    const totalPages = Math.ceil(totalVideos / limit);
-
-    const videos = await prisma.video.findMany({
-      skip,
-      take: limit,
-      orderBy: { trendingDate: "desc" },
-      include: { category: true },
-    });
+    const result = await youtubeService.getVideoPaginated(page, limit);
 
     res.status(200).json({
       success: true,
       metadata: {
-        totalVideos,
-        currentPage: page,
-        totalPages,
-        pageSize: limit,
+        totalVideos: result.totalVideos,
+        currentPage: result.currentPage,
+        totalPages: result.totalPages,
+        pageSize: result.pageSize,
       },
-      videos,
+      videos: result.videos,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
 
-export const getVideoById = async (req: Request, res: Response):Promise<any> => {
+export const getVideoById = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
+    const { prisma } = await initializeDependencies();
     const video = await prisma.video.findUnique({
       where: { id: req.params.id },
     });
@@ -101,6 +75,7 @@ export const getVideoById = async (req: Request, res: Response):Promise<any> => 
 
 export const createVideo = async (req: Request, res: Response) => {
   try {
+    const { prisma } = await initializeDependencies();
     const video = await prisma.video.create({
       data: req.body,
     });
@@ -112,6 +87,7 @@ export const createVideo = async (req: Request, res: Response) => {
 
 export const updateVideo = async (req: Request, res: Response) => {
   try {
+    const { prisma } = await initializeDependencies();
     const video = await prisma.video.update({
       where: { id: req.params.id },
       data: req.body,
@@ -124,14 +100,13 @@ export const updateVideo = async (req: Request, res: Response) => {
 
 export const deleteVideo = async (req: Request, res: Response) => {
   try {
+    const { prisma } = await initializeDependencies();
     await prisma.video.delete({
       where: { videoId: req.params.id },
     });
-    
     res.status(204).send();
   } catch (error: any) {
     console.log("Error deleting video:", error.message);
-    
     res.status(500).json({ error: error.message });
   }
 };

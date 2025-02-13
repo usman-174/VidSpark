@@ -1,5 +1,4 @@
-// src/pages/Register.tsx
-import React, { useLayoutEffect } from "react";
+import React, { useState, useLayoutEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,10 +13,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import axios from "@/api/axiosInstance";
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom"; 
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuthStore from "@/store/authStore";
+import { Link } from "react-router-dom";  // Import Link here
 
 const registerSchema = z
   .object({
@@ -36,10 +35,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const router = useNavigate();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-
-  // Pull invitationId from the query string (e.g. /register?invitationId=<someInvitationId>)
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
 
@@ -58,12 +55,11 @@ const Register: React.FC = () => {
       await axios.post("/auth/register", {
         email: values.email,
         password: values.password,
-        // Pass invitationId if present
         invitationId: invitationId || undefined,
       });
 
       toast.success("Registration successful! Please login.");
-      router("/login");
+      navigate("/login");
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.error || "Something went wrong";
@@ -81,76 +77,99 @@ const Register: React.FC = () => {
 
   useLayoutEffect(() => {
     if (isAuthenticated) {
-      router("/");
+      navigate("/");
     }
   }, [isAuthenticated]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4">Register</h2>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              name="email"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              name="password"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              name="confirmPassword"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Confirm your password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="text-sm text-center">
-              <p>
-                Already have an account?{" "}
-                <Link to="/login" className="text-primary hover:underline">
-                  Login
-                </Link>
-              </p>
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Registering..." : "Register"}
-            </Button>
-          </form>
-        </Form>
+    <div className="flex min-h-screen bg-gradient-to-r from-blue-500 to-purple-600">
+      {/* Left Side - Heading */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
+        <div className="text-center text-white">
+          <h1 className="text-5xl font-bold mb-4">Create an Account</h1>
+          <p className="text-lg">Please fill in the details below to register.</p>
+        </div>
+      </div>
+
+      {/* Right Side - Register Form */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
+            Register
+          </h2>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                name="email"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your email"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="password"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Enter your password"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="confirmPassword"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Confirm your password"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-between text-sm text-gray-600">
+                <p>
+                  Already have an account?{" "}
+                  <Link to="/login" className="text-blue-600 hover:underline">
+                    Login
+                  </Link>
+                </p>
+              </div>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-300"
+              >
+                {loading ? "Registering..." : "Register"}
+              </Button>
+            </form>
+          </Form>
+        </div>
       </div>
     </div>
   );

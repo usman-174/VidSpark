@@ -136,7 +136,6 @@ const Profile: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Invitation Card */}
       <Card className="max-w-md mx-auto mt-6 shadow-lg rounded-lg overflow-hidden">
         <CardHeader>
           <CardTitle>Invite a Friend</CardTitle>
@@ -153,8 +152,7 @@ const Profile: React.FC = () => {
           <Button
             onClick={handleSendInvitation}
             disabled={isSending || !email}
-            className="w-full"
-            variant={isSending || !email ? "secondary" : "default"}
+            className="w-full bg-red-600 text-white hover:bg-red-700 transition duration-300"
           >
             {isSending ? "Sending..." : "Send Invitation"}
           </Button>
