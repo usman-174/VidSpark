@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { franc } from "franc";
+import { detect } from "langdetect"
 import axios from "axios";
 
 const prisma = new PrismaClient();
@@ -65,9 +65,9 @@ function parseISO8601Duration(durationStr: string): number {
 function prepareFeature(feature: any): string {
   return feature
     ? feature
-        .toString()
-        .replace(/[\n\r"]+/g, "")
-        .trim()
+      .toString()
+      .replace(/[\n\r"]+/g, "")
+      .trim()
     : "";
 }
 /**
@@ -100,20 +100,19 @@ export async function fetchYouTubeData(pageToken: string | null) {
     // Fixed date for initial fetch from past
     const lastPublishedDate = latestVideo
       ? latestVideo.publishedAt.toISOString()
-      : "1970-01-01T00:00:00Z"; // Fixed from future date to past date
+      : "1970-01-01T00:00:00Z";
 
     const url = `https://www.googleapis.com/youtube/v3/search?part=id,snippet&type=video&maxResults=50&order=date&regionCode=PK&relevanceLanguage=en&publishedAfter=${lastPublishedDate}&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
 
-      // Filter videos with English titles
+      // Filter videos with English and Urdu titles using langdetect
+      const allowedLangs = ["en", "ur"];
       const filteredItems = response.data.items.filter((item: any) => {
         const title = item.snippet.title;
-        // Detect language with minimum confidence
-        const resultLang = franc(title, { minLength: 3 });
-        const allowedLangs = ["eng", "urd"];
-        return allowedLangs.includes(resultLang);
+        const detectedLang = detect(title); // Detect language
+        return allowedLangs.includes(detectedLang);
       });
 
       console.log(
