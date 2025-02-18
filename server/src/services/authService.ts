@@ -11,105 +11,136 @@ export const register = async (
   password: string,
   invitationId?: string
 ) => {
-  // 1. Check if user with this email already exists
+  // Pre-check for an existing user outside of the transaction
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     throw new Error("User already exists");
   }
 
-  // 2. Hash the password
+  // Hash the password before starting the transaction
   const hashedPassword = await hashPassword(password);
 
-  // 3. Load policies
-  const parentPolicy = await prisma.policy.findFirst({
-    where: { type: PolicyType.PARENT_RELATIONSHIP },
-  });
-  const firstSignupPolicy = await prisma.policy.findFirst({
-    where: { type: PolicyType.FIRST_SIGNUP },
-  });
-  const simplePolicy = await prisma.policy.findFirst({
-    where: { type: PolicyType.SIMPLE_RELATIONSHIP },
-  });
-
-  // 4. Handle invitation if provided
-  let parentId: string | undefined;
-  if (invitationId) {
-    const invitation = await prisma.invitation.findUnique({
-      where: { id: invitationId },
-    });
-
-    if (!invitation) {
-      throw new Error("Invalid invitation ID");
-    }
-    if (invitation.inviteeEmail !== email) {
-      throw new Error("Invalid invitation or email mismatch");
+  // Wrap the entire registration and credit awarding process in one transaction
+  const newUser = await prisma.$transaction(async (tx) => {
+    // --- Invitation Handling ---
+    let parentId: string | undefined;
+    if (invitationId) {
+      const invitation = await tx.invitation.findUnique({
+        where: { id: invitationId },
+      });
+      if (!invitation) {
+        throw new Error("Invalid invitation ID");
+      }
+      if (invitation.inviteeEmail !== email) {
+        throw new Error("Invalid invitation or email mismatch");
+      }
+      // Mark the invitation as used
+      await tx.invitation.update({
+        where: { id: invitationId },
+        data: { isUsed: true },
+      });
+      // Use the inviter as the direct parent
+      parentId = invitation.inviterId;
     }
 
-    // Mark the invitation as used
-    await prisma.invitation.update({
-      where: { id: invitationId },
-      data: { isUsed: true },
-    });
+    // --- Load Policies Concurrently ---
+    const [parentPolicy, firstSignupPolicy, simplePolicy] = await Promise.all([
+      tx.policy.findFirst({ where: { type: PolicyType.PARENT_RELATIONSHIP } }),
+      tx.policy.findFirst({ where: { type: PolicyType.FIRST_SIGNUP } }),
+      tx.policy.findFirst({ where: { type: PolicyType.SIMPLE_RELATIONSHIP } }),
+    ]);
 
-    // The user who sent the invitation (inviter) is the parent
-    parentId = invitation.inviterId;
-  }
-  const newUser = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      parentId,
-      credits: {
-        create: {
-          credits: firstSignupPolicy?.credits ?? 0,
+    // --- Create the New User with Signup Bonus ---
+    // The user's initial creditBalance is set to the signup bonus (or 0)
+    const createdUser = await tx.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        parentId,
+        creditBalance: firstSignupPolicy?.credits ?? 0,
+        credits: {
+          create: {
+            credits: firstSignupPolicy?.credits ?? 0,
+          },
         },
       },
-    },
-  });
-  // 5. Create the new user and award credits in one transaction
-  return await prisma.$transaction(async (tx) => {
-    // Create the new user with FIRST_SIGNUP credits
+    });
 
-    // If there's a parent, first give them the PARENT_RELATIONSHIP credits
+    // Array to hold credit operations (both credit record creation and balance updates)
+    const creditOperations: Promise<any>[] = [];
+
+    // --- Award Credits to Direct Parent (if exists) ---
     if (parentId && parentPolicy) {
-      await tx.credit.create({
-        data: {
-          userId: parentId,
-          credits: parentPolicy.credits,
-        },
-      });
-
-      // Now walk up the chain from the parent's parent onward,
-      // giving each ancestor the SIMPLE_RELATIONSHIP credits.
-      let currentParentId = (
-        await tx.user.findUnique({
-          where: { id: parentId },
-          select: { parentId: true },
+      // 1. Create a credit record for the parent
+      creditOperations.push(
+        tx.credit.create({
+          data: {
+            userId: parentId,
+            credits: parentPolicy.credits,
+          },
         })
-      )?.parentId;
-
-      while (currentParentId) {
-        if (simplePolicy) {
-          await tx.credit.create({
-            data: {
-              userId: currentParentId,
-              credits: simplePolicy.credits,
+      );
+      // 2. Increment the parent's creditBalance
+      creditOperations.push(
+        tx.user.update({
+          where: { id: parentId },
+          data: {
+            creditBalance: {
+              increment: parentPolicy.credits,
             },
-          });
-        }
+          },
+        })
+      );
 
-        // Move one level up in the parent chain
-        currentParentId = (
-          await tx.user.findUnique({
-            where: { id: currentParentId },
-            select: { parentId: true },
+      // --- Award SIMPLE_RELATIONSHIP Credits to Ancestors ---
+      // Walk up the ancestry chain from the direct parent
+      let currentParent = await tx.user.findUnique({
+        where: { id: parentId },
+        select: { parentId: true },
+      });
+      const ancestors: string[] = [];
+
+      while (currentParent?.parentId) {
+        ancestors.push(currentParent.parentId);
+        currentParent = await tx.user.findUnique({
+          where: { id: currentParent.parentId },
+          select: { parentId: true },
+        });
+      }
+
+      if (simplePolicy && ancestors.length > 0) {
+        // 1. Create credit records for all ancestors in batch
+        creditOperations.push(
+          tx.credit.createMany({
+            data: ancestors.map((ancestorId) => ({
+              userId: ancestorId,
+              credits: simplePolicy.credits,
+            })),
           })
-        )?.parentId;
+        );
+        // 2. Increment the creditBalance for all these ancestors
+        creditOperations.push(
+          tx.user.updateMany({
+            where: { id: { in: ancestors } },
+            data: {
+              creditBalance: {
+                increment: simplePolicy.credits,
+              },
+            },
+          })
+        );
       }
     }
 
-    return newUser;
+    // Execute all credit operations concurrently
+    if (creditOperations.length > 0) {
+      await Promise.all(creditOperations);
+    }
+
+    return createdUser;
   });
+
+  return newUser;
 };
 
 export const login = async (email: string, password: string) => {
