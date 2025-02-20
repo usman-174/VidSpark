@@ -5,14 +5,15 @@ import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
 import axios from "axios";
 
 import vader from "vader-sentiment";
-
+import { deductCredits } from "../services/userService";
 
 export const analyzeVideoSentiment = async (req: Request, res: Response) => {
   try {
-  await    loadKeysFromDB();
+    await loadKeysFromDB();
     const { videoId } = req.query;
+    const { user } = res.locals;
     // console.log("params", req.query);
-    
+
     if (!videoId) {
       res.status(400).json({ error: "Missing video ID." });
     }
@@ -23,7 +24,7 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
 
     const response = await axios.get(YOUTUBE_COMMENTS_URL);
     console.log("after video");
-    
+
     const comments = response.data.items.map(
       (item: any) => item.snippet.topLevelComment.snippet.textDisplay
     );
@@ -33,10 +34,9 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     }
 
     const sentimentScores = comments.map((comment) => {
-      const sentimentResult = vader.SentimentIntensityAnalyzer.polarity_scores(
-        comment
-      );
-      
+      const sentimentResult =
+        vader.SentimentIntensityAnalyzer.polarity_scores(comment);
+
       return {
         comment,
         ...sentimentResult,
@@ -57,7 +57,7 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     overallSentiment.positive /= total;
     overallSentiment.neutral /= total;
     overallSentiment.negative /= total;
-
+    await deductCredits(user.userId, 1);
     res.status(200).json({ overallSentiment, sentimentScores });
   } catch (error) {
     console.error("Error analyzing sentiment:", error.response.data);
@@ -65,11 +65,10 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getTrendingVideos = async (req: Request, res: Response) => {
   try {
-    loadKeysFromDB()
-    const { prisma, axios } = await initializeDependencies();
+    loadKeysFromDB();
+    const { axios } = await initializeDependencies();
 
     // Fetch the next available YouTube API key from DB
     const YOUTUBE_API_KEY = getNextApiKey();
@@ -84,7 +83,7 @@ export const getTrendingVideos = async (req: Request, res: Response) => {
       views: video.statistics.viewCount,
       likes: video.statistics.likeCount,
       channelTitle: video.snippet.channelTitle,
-      snippet: video.snippet
+      snippet: video.snippet,
     }));
 
     res.status(200).json(videos);

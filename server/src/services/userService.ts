@@ -1,7 +1,7 @@
 // src/services/userService.ts
 
-import { hashPassword } from '../utils/hashUtils';
-import { PrismaClient, Role, User } from '@prisma/client';
+import { hashPassword } from "../utils/hashUtils";
+import { PrismaClient, Role, User } from "@prisma/client";
 
 export interface UserData {
   email?: string;
@@ -17,21 +17,21 @@ export const getUsers = async () => {
     select: {
       id: true,
       email: true,
-    
+
       role: true,
       profileImage: true,
       createdAt: true,
       _count: {
-        select: { credits: true }
-      }
-    }
+        select: { credits: true },
+      },
+    },
   });
 
   const usersWithCredits = await Promise.all(
-    users.map(async (user:any) => {
+    users.map(async (user: any) => {
       const totalCredits = await prisma.credit.aggregate({
         where: { userId: user.id },
-        _sum: { credits: true }
+        _sum: { credits: true },
       });
       return { ...user, totalCredits: totalCredits._sum.credits || 0 };
     })
@@ -46,18 +46,18 @@ export const getUserById = async (id: string) => {
     select: {
       id: true,
       email: true,
-     
+
       role: true,
       profileImage: true,
-      createdAt: true
-    }
+      createdAt: true,
+    },
   });
 
   if (!user) return null;
 
   const totalCredits = await prisma.credit.aggregate({
     where: { userId: id },
-    _sum: { credits: true }
+    _sum: { credits: true },
   });
 
   return { ...user, totalCredits: totalCredits._sum.credits || 0 };
@@ -65,7 +65,7 @@ export const getUserById = async (id: string) => {
 
 export const updateUser = async (id: string, data: UserData) => {
   const updateData: any = { ...data };
-  
+
   if (data.password) {
     updateData.password = await hashPassword(data.password);
   }
@@ -76,14 +76,34 @@ export const updateUser = async (id: string, data: UserData) => {
     select: {
       id: true,
       email: true,
-   
+
       role: true,
-      profileImage: true
-    }
+      profileImage: true,
+    },
   });
 };
 
 export const deleteUser = async (id: string) => {
   await prisma.credit.deleteMany({ where: { userId: id } });
   return prisma.user.delete({ where: { id } });
+};
+
+export const deductCredits = async (userId: string, credits: number) => {
+  await prisma.credit.create({
+    data: {
+      userId,
+      credits: -credits,
+    },
+  });
+  // update user creditBalance (user.creditBalance - credits)
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      creditBalance: {
+        decrement: credits,
+      },
+    },
+  });
+
+  return true;
 };

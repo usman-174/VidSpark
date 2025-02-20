@@ -1,7 +1,6 @@
 // src/store/authStore.ts
 import { create } from "zustand";
 import axios from "@/api/axiosInstance";
-import { NavigateFunction } from "react-router-dom";
 
 type Role = "USER" | "ADMIN";
 
@@ -9,6 +8,7 @@ export interface User {
   id: string;
   email: string;
   role: Role;
+  creditBalance?: number; 
   profileImage?: string;
   gender?: string;
   parentId?: string;
@@ -23,6 +23,7 @@ interface AuthState {
   login: (token: string, userData: User) => void;
   logout: () => void;
   getCurrentUser: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const useAuthStore = create<AuthState>((set) => ({
@@ -33,13 +34,20 @@ const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem("token", token);
     set({ isAuthenticated: true, user: userData, isLoading: false });
   },
-  logout: (
-  ) => {
+  logout: () => {
     localStorage.removeItem("token");
     // console.log("navigate");
     set({ isAuthenticated: false, user: null, isLoading: false });
   },
   getCurrentUser: async () => {
+    try {
+      const { data } = await axios.get("/auth/me");
+      set({ isAuthenticated: true, user: data, isLoading: false });
+    } catch (error) {
+      set({ isAuthenticated: false, user: null, isLoading: false });
+    }
+  },
+  refreshUser: async () => {
     try {
       const { data } = await axios.get("/auth/me");
       set({ isAuthenticated: true, user: data, isLoading: false });

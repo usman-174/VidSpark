@@ -16,25 +16,20 @@ interface NavbarProps {
 
 export const Navbar: FC<NavbarProps> = ({ user, logout }) => {
   const isAdmin = user?.role === "ADMIN";
-  
+  console.log("user", user);
+
   return (
     <header className="h-16 border-b bg-white">
       <div className="flex items-center justify-between h-full px-6">
-        {/* Left Section: Placeholder (Logo can be added here) */}
+      
         <div className="w-1/3">{/* Empty for now */}</div>
-        
-        {/* Center Section: Welcome Message (only for non-admin users) */}
-        {/* {user && !isAdmin && (
-          <div className="w-1/3 text-center text-xl font-bold text-black whitespace-nowrap">
-            Welcome back, <span className="text-green-600">{user.email}</span>!
-          </div>
-        )} */}
-        
-        {/* Right Section: Credits and Profile Dropdown */}
+
+       
+
         <div className="w-1/3 flex justify-end items-center gap-4">
           {!isAdmin && (
             <Badge variant="outline" className="h-8 px-3">
-              Credits: {user?.totalCredits || 0}
+              Credits: {user?.creditBalance || 0}
             </Badge>
           )}
           <DropdownMenu>

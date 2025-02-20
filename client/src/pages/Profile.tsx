@@ -1,161 +1,279 @@
 import React, { useState, useEffect } from "react";
-import axiosInstance from "@/api/axiosInstance";
-import useAuthStore from "@/store/authStore";
 import {
   Card,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardContent,
+  CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import toast, { Toaster } from "react-hot-toast";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Upload, UserPlus, AlertCircle, Check, X } from "lucide-react";
+import toast from "react-hot-toast";
+import axiosInstance from "@/api/axiosInstance";
+import useAuthStore from "@/store/authStore";
 
-const Profile: React.FC = () => {
+const Profile = () => {
   const { user } = useAuthStore();
-  const [email, setEmail] = useState<string>("");
-  const [isSending, setIsSending] = useState<boolean>(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(user?.profileImage || null);
-  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const [invitedUsers, setInvitedUsers] = useState<any[]>([]);
+  const [formState, setFormState] = useState({
+    email: "",
+    isLoading: false,
+    file: null as File | null,
+    isUploading: false,
+    profileImage: user?.profileImage || null,
+    isDialogOpen: false,
+  });
 
-  const inviterId = user?.id;
+  const [invitedUsers, setInvitedUsers] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    if (inviterId) {
-      fetchInvitedUsers();
-    }
-  }, [inviterId]);
+    fetchInvitedUsers();
+  }, [user?.id]);
 
   const fetchInvitedUsers = async () => {
     try {
       const response = await axiosInstance.get("/invitations/get-invitations");
       setInvitedUsers(response.data);
     } catch (error) {
-      toast.error("Failed to fetch invited users.");
+      toast.error("Failed to fetch invited users");
     }
   };
 
-  const handleSendInvitation = async () => {
-    if (!inviterId) {
-      toast.error("User ID is missing. Please log in.");
+  const handleInvitation = async () => {
+    if (!formState.email.trim()) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
-    setIsSending(true);
-    toast.loading("Sending invitation...");
+    setFormState(prev => ({ ...prev, isLoading: true }));
 
     try {
       await axiosInstance.post("/invitations/send-invitation", {
-        inviterId,
-        inviteeEmail: email,
+        inviterId: user?.id,
+        inviteeEmail: formState.email,
       });
 
-      toast.dismiss();
       toast.success("Invitation sent successfully!");
-      setEmail("");
+      setFormState(prev => ({ ...prev, email: "" }));
       fetchInvitedUsers();
     } catch (error: any) {
-      toast.dismiss();
-      const errorMsg = error.response?.data?.error || "Error sending invitation.";
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.error || "Failed to send invitation");
     } finally {
-      setIsSending(false);
+      setFormState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size should be less than 5MB");
+        return;
+      }
+      setFormState(prev => ({ ...prev, file, isDialogOpen: true }));
     }
   };
 
   const handleImageUpload = async () => {
-    if (!file) {
-      toast.error("Please select an image to upload.");
-      return;
-    }
+    if (!formState.file) return;
 
-    setUploading(true);
+    setFormState(prev => ({ ...prev, isUploading: true }));
+    setUploadProgress(0);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", formState.file);
 
     try {
       const response = await axiosInstance.post("/uploads/profile-image", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          const progress = progressEvent.loaded / (progressEvent.total || 0) * 100;
+          setUploadProgress(Math.round(progress));
+        },
       });
 
-      const imageUrl = response.data.imageUrl;
-      setUploadedImage(imageUrl);
-      setFile(null);
-      toast.success("Profile picture updated!");
+      setFormState(prev => ({
+        ...prev,
+        profileImage: response.data.imageUrl,
+        file: null,
+        isDialogOpen: false,
+        isUploading: false,
+      }));
+      
+      toast.success("Profile picture updated successfully!");
     } catch (error) {
-      toast.error("Failed to upload image. Please try again.");
+      toast.error("Failed to upload image");
     } finally {
-      setUploading(false);
-      setIsDialogOpen(false);
+      setFormState(prev => ({ ...prev, isUploading: false }));
+      setUploadProgress(0);
     }
   };
 
+  const InvitationStatus = ({ isUsed }: { isUsed: boolean }) => (
+    <Badge variant={isUsed ? "outline" : "secondary"} className="ml-2">
+      {isUsed ? (
+        <Check className="w-3 h-3 mr-1" />
+      ) : (
+        <AlertCircle className="w-3 h-3 mr-1" />
+      )}
+      {isUsed ? "Accepted" : "Pending"}
+    </Badge>
+  );
+
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <Toaster position="top-right" />
-      
-      {/* Profile Card */}
-      <Card className="max-w-md mx-auto shadow-lg rounded-lg overflow-hidden">
+    <div className="container mx-auto p-6 max-w-4xl space-y-6">
+      {/* Profile Header */}
+      <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-4">
-            <Avatar>
-              <AvatarImage src={uploadedImage || "/default-avatar.png"} alt="Profile Image" />
-              <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <div className="relative group">
+              <Avatar className="h-20 w-20 cursor-pointer">
+                <AvatarImage src={formState.profileImage || "/default-avatar.png"} />
+                <AvatarFallback className="text-lg">
+                  {user?.email?.[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                <label className="cursor-pointer p-2">
+                  <Upload className="h-6 w-6 text-white" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                  />
+                </label>
+              </div>
+            </div>
             <div>
-              <CardTitle className="text-lg font-semibold">{user?.email}</CardTitle>
-              <p className="text-sm text-gray-500">Role: {user?.role}</p>
+              <CardTitle className="text-2xl">{user?.email}</CardTitle>
+              <CardDescription>
+                <Badge variant="outline" className="mt-1">
+                  {user?.role}
+                </Badge>
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
       </Card>
-      
-      {/* Invited Users */}
-      <Card className="max-w-md mx-auto shadow-lg rounded-lg overflow-hidden">
-        <CardHeader>
-          <CardTitle>Invited Users</CardTitle>
-          <p className="text-sm text-gray-600">List of people you've invited.</p>
-        </CardHeader>
-        <CardContent>
-          {invitedUsers.length === 0 ? (
-            <p className="text-center text-gray-500">No invitations sent yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {invitedUsers.map((invite) => (
-                <li key={invite.id} className="p-2 border rounded-md">
-                  <p className="text-sm font-medium">{invite.inviteeEmail}</p>
-                  <p className="text-xs text-gray-500">Status: {invite.isUsed ? "Accepted" : "Pending"}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Invite Friend */}
-      <Card className="max-w-md mx-auto shadow-lg rounded-lg overflow-hidden">
-        <CardHeader>
-          <CardTitle>Invite a Friend</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input type="email" placeholder="Enter your friend's email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Button onClick={handleSendInvitation} disabled={isSending || !email} className="mt-4 w-full bg-red-600 text-white hover:bg-red-700">
-            {isSending ? "Sending..." : "Send Invitation"}
-          </Button>
-        </CardContent>
-      </Card>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Invite Friend Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <UserPlus className="w-5 h-5 mr-2" />
+              Invite a Friend
+            </CardTitle>
+            <CardDescription>
+              Send an invitation to join the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Input
+                type="email"
+                placeholder="friend@example.com"
+                value={formState.email}
+                onChange={(e) => setFormState(prev => ({ ...prev, email: e.target.value }))}
+              />
+              <Button
+                className="w-full"
+                onClick={handleInvitation}
+                disabled={formState.isLoading || !formState.email}
+              >
+                {formState.isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Invitation"
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Invited Users Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>Invited Users</CardTitle>
+            <CardDescription>
+              Track your sent invitations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {invitedUsers.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                No invitations sent yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {invitedUsers.map((invite: any) => (
+                  <div
+                    key={invite.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <span className="font-medium">{invite.inviteeEmail}</span>
+                    <InvitationStatus isUsed={invite.isUsed} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Image Upload Dialog */}
+      <Dialog
+        open={formState.isDialogOpen}
+        onOpenChange={(open) => setFormState(prev => ({ ...prev, isDialogOpen: open }))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Profile Picture</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {formState.isUploading && (
+              <div className="space-y-2">
+                <Progress value={uploadProgress} />
+                <p className="text-sm text-center text-gray-500">
+                  Uploading... {uploadProgress}%
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFormState(prev => ({ ...prev, isDialogOpen: false }))}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImageUpload}
+              disabled={formState.isUploading}
+            >
+              {formState.isUploading ? "Uploading..." : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
