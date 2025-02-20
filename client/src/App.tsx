@@ -46,6 +46,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["USER"]} />}>
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/sentimental-analysis" element={<SentimentAnalysis />} />
             {/* Profile */}
             <Route path="/profile" element={<Profile />} />
           </Route>
@@ -79,6 +80,7 @@ import YTVideos from "./pages/Admin/YTVideos";
 import PackagesPage from "./pages/Admin/Packages";
 import UsersPage from "./pages/Admin/Users";
 import Landing from "./pages/Landing";
+import SentimentAnalysis from "./pages/SentimentalAnalysis";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];
