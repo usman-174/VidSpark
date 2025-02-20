@@ -43,7 +43,7 @@ export const ForgotPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-500 via-teal-500 to-purple-600">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-600 to-teal-600">
       <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Forgot Password</h2>
         <Form {...form}>
