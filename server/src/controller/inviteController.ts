@@ -2,7 +2,7 @@
 
 import { Request, Response } from "express";
 import { createInvitation } from "../services/inviteService";
-import { getUserByEmail } from "../services/authService";
+import { getInvitationsByUserId, getUserByEmail } from "../services/authService";
 
 /**
  * Handles sending an invitation.
@@ -34,3 +34,14 @@ export const sendInvitation = async (req: Request, res: Response): Promise<any> 
     }
   };
   
+export const getMyInvitations = async (req: Request, res: Response): Promise<any> => {
+  const user = res.locals.user;
+  
+    try {
+      const invitations = await getInvitationsByUserId(user.userId);
+      return res.status(200).json(invitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };

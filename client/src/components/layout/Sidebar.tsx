@@ -59,11 +59,13 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const { user } = useAuthStore();
   const location = useLocation();
   const isAdmin = user?.role === "ADMIN";
-
+  console.log("user", user);
+  
   const userLinks = [
     { to: "/", icon: Home, label: "Home" },
     { to: "/dashboard", icon: Layout, label: "Dashboard" },
     { to: "/profile", icon: User, label: "Profile" },
+    { to: "/sentimental-analysis", icon: BarChart, label: "Sentiment Analysis" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -127,9 +129,9 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
       <div className="absolute bottom-0 w-full p-4">
         <div className="flex items-center gap-3">
           <img
-            src={user?.profileImage || "/default-avatar.jpg"}
+           src={user?.profileImage || "/default-avatar.jpg"}
             alt="Profile"
-            className="w-8 h-8 rounded-full bg-gray-700"
+            className="w-8 h-8 rounded-full border bg-gray-100"
           />
           {!isCollapsed && (
             <div className="flex-1 min-w-0">

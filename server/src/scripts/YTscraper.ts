@@ -66,9 +66,9 @@ function parseISO8601Duration(durationStr: string): number {
 function prepareFeature(feature: any): string {
   return feature
     ? feature
-        .toString()
-        .replace(/[\n\r"]+/g, "")
-        .trim()
+      .toString()
+      .replace(/[\n\r"]+/g, "")
+      .trim()
     : "";
 }
 /**
@@ -127,10 +127,12 @@ export async function fetchYouTubeData(pageToken: string | null) {
       const response = await axios.get(url);
 
       // Filter videos with English titles
+
       const filteredItems = response.data.items.filter((item: any) => {
         const title = item.snippet.title;
         return isEnglishTitle(title);
       });
+
       console.log(
         `Fetched ${filteredItems.length} videos (from ${response.data.items.length} results) using API key ${apiKey}`
       );

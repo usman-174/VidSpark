@@ -16,9 +16,15 @@ export const UserDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p><span className="font-semibold">Email:</span> {user?.email}</p>
-              <p><span className="font-semibold">Role:</span> {user?.role}</p>
-              <p><span className="font-semibold">Gender:</span> {user?.gender || 'Not specified'}</p>
+              <p>
+                <span className="font-semibold">Email:</span> {user?.email}
+              </p>
+              <p>
+                <span className="font-semibold">Role:</span> {user?.role}
+              </p>
+              <p>
+                <span className="font-semibold">Gender:</span> {user?.gender || 'Not specified'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -29,8 +35,12 @@ export const UserDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p><span className="font-semibold">Status:</span> Active</p>
-              <p><span className="font-semibold">Member Since:</span> {new Date().toLocaleDateString()}</p>
+              <p>
+                <span className="font-semibold">Status:</span> Active
+              </p>
+              <p>
+                <span className="font-semibold">Member Since:</span> {new Date().toLocaleDateString()}
+              </p>
             </div>
           </CardContent>
         </Card>
