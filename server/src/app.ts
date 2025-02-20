@@ -10,6 +10,7 @@ import authRoutes from "./routes/authRoutes";
 import invitationRoutes from "./routes/invitationRoutes";
 import uploadRoutes from "./routes/uploadRoute";
 import ytRouter from "./routes/ytRoutes";
+import paymentRoutes from "./routes/paymentRoutes";
 
 dotenv.config();
 const app = express();
@@ -33,13 +34,13 @@ app.get("/health", (req, res) => {
 // Authentication and invitation routes
 app.use("/api/auth", authRoutes);
 app.use("/api/invitations", setUser, restrictTo(["USER"]), invitationRoutes);
-
 // Video scraping and admin routes
 app.use("/api/videos", setUser, ytRouter);
 app.use("/api/admin", setUser, restrictTo(["ADMIN"]), adminRouter);
 app.use("/api/packages", setUser, restrictTo(["ADMIN"]), packageRouter);
 app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
 app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
+app.use('/api/payments', setUser, restrictTo("USER"),paymentRoutes);
 
 // Start server
 app.listen(PORT, () => {

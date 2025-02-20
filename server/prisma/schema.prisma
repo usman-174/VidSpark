@@ -17,6 +17,7 @@ model User {
   resetToken      String?
   role            Role         @default(USER)
   parentId        String?
+  creditBalance   Int          @default(0) // <-- current available credits
   credits         Credit[]
   sentInvitations Invitation[] @relation("UserInvitations")
   parent          User?        @relation("ParentOf", fields: [parentId], references: [id])
@@ -49,6 +50,36 @@ model Policy {
   credits   Int
   createdAt DateTime   @default(now())
   type      PolicyType
+}
+
+model CreditPackage {
+  id        String   @id @default(uuid())
+  name      String // e.g., "Bronze", "Silver", "Gold"
+  credits   Int // number of credits provided by this package
+  price     Float // price of the package (for example, in USD)
+  createdAt DateTime @default(now())
+
+  // Relation to payments made for this package
+  payments Payment[]
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  userId          String
+  creditPackageId String
+  amount          Float
+  stripePaymentId String        @unique // <--- Mark as unique
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id])
+  creditPackage CreditPackage @relation(fields: [creditPackageId], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
 }
 
 model Category {
@@ -96,34 +127,4 @@ enum PolicyType {
 enum Role {
   USER
   ADMIN
-}
-
-model CreditPackage {
-  id         String    @id @default(uuid())
-  name       String    // e.g., "Bronze", "Silver", "Gold"
-  credits    Int       // number of credits provided by this package
-  price      Float     // price of the package (for example, in USD)
-  createdAt  DateTime  @default(now())
-
-  // Relation to payments made for this package
-  payments   Payment[]
-}
-
-model Payment {
-  id              String         @id @default(uuid())
-  userId          String
-  creditPackageId String
-  amount          Float          // The amount paid (this could duplicate CreditPackage.price for reference)
-  stripePaymentId String         // The payment identifier from Stripe
-  status          PaymentStatus  @default(PENDING)
-  createdAt       DateTime       @default(now())
-
-  user            User           @relation(fields: [userId], references: [id])
-  creditPackage   CreditPackage  @relation(fields: [creditPackageId], references: [id])
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCEEDED
-  FAILED
 }
