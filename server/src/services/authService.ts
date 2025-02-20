@@ -225,3 +225,11 @@ export const getUserByEmail = async (email: string) => {
     where: { email },
   });
 };
+
+
+export const getInvitationsByUserId = async (userId: string) => {
+
+  return prisma.invitation.findMany({
+    where: { inviterId: userId },
+  });
+}

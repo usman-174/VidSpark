@@ -32,14 +32,14 @@ app.get("/health", (req, res) => {
 
 // Authentication and invitation routes
 app.use("/api/auth", authRoutes);
-app.use("/api/invitations", setUser, restrictTo("USER"), invitationRoutes);
+app.use("/api/invitations", setUser, restrictTo(["USER"]), invitationRoutes);
 
 // Video scraping and admin routes
-app.use("/api/videos", setUser, restrictTo("ADMIN"), ytRouter);
-app.use("/api/admin", setUser, restrictTo("ADMIN"), adminRouter);
-app.use("/api/packages", setUser, restrictTo("ADMIN"), packageRouter);
-app.use("/api/users", setUser, restrictTo("ADMIN"), userRouter);
-app.use("/api/uploads", setUser, restrictTo("USER"), uploadRoutes);
+app.use("/api/videos", setUser, ytRouter);
+app.use("/api/admin", setUser, restrictTo(["ADMIN"]), adminRouter);
+app.use("/api/packages", setUser, restrictTo(["ADMIN"]), packageRouter);
+app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
+app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
 
 // Start server
 app.listen(PORT, () => {

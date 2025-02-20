@@ -44,7 +44,7 @@ export const setUser = (
 };
 
 export const restrictTo =
-  (...roles: string[]) => {
+  (roles: string[]) => {
     return (req: Request, res: Response, next: NextFunction):any => {
       
       

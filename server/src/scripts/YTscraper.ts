@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 // import langs from "langs"
-import { franc } from "franc";
+// import { franc } from "franc";
 import axios from "axios";
 
 const prisma = new PrismaClient();
@@ -66,9 +66,9 @@ function parseISO8601Duration(durationStr: string): number {
 function prepareFeature(feature: any): string {
   return feature
     ? feature
-        .toString()
-        .replace(/[\n\r"]+/g, "")
-        .trim()
+      .toString()
+      .replace(/[\n\r"]+/g, "")
+      .trim()
     : "";
 }
 /**
@@ -109,13 +109,14 @@ export async function fetchYouTubeData(pageToken: string | null) {
       const response = await axios.get(url);
 
       // Filter videos with English titles
-      const filteredItems = response.data.items.filter((item: any) => {
-        const title = item.snippet.title;
-        const detectedLang = franc(title, { minLength: 3 });
-        const allowedLangs = ["eng", "urd"];
-        return detectedLang && allowedLangs.includes(detectedLang);
-        // return allowedLangs.includes(detectedLang);
-      });
+      const filteredItems = response.data.items
+      // .filter((item: any) => {
+      //   const title = item.snippet.title;
+      //   const detectedLang = franc(title, { minLength: 3 });
+      //   const allowedLangs = ["eng", "urd"];
+      //   return detectedLang && allowedLangs.includes(detectedLang);
+      //   // return allowedLangs.includes(detectedLang);
+      // });
 
       console.log(
         `Fetched ${filteredItems.length} videos (from ${response.data.items.length} results) using API key ${apiKey}`
