@@ -7,7 +7,120 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2025-01-27.acacia",
   typescript: true,
 });
+export const getPaymentsByUserIdPaginated = async (
+  userId: string,
+  page: number = 1,
+  limit: number = 10
+) => {
+  const skip = (page - 1) * limit;
 
+  // Get payments with pagination
+  const payments = await prisma.payment.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: limit,
+    include: {
+      creditPackage: true,
+    },
+  });
+
+  // Get total count for pagination metadata
+  const total = await prisma.payment.count({
+    where: { userId },
+  });
+
+  return {
+    payments,
+    total,
+  };
+};
+
+interface PaymentFilterOptions {
+  page: number;
+  limit: number;
+  startDate?: Date;
+  endDate?: Date;
+  status?: string;
+  search?: string;
+}
+
+export const getAllPaymentsPaginated = async (
+  options: PaymentFilterOptions
+) => {
+  const { page = 1, limit = 10, startDate, endDate, status, search } = options;
+  const skip = (page - 1) * limit;
+
+  // Build the where clause for filtering
+  let whereClause: any = {};
+
+  // Filter by date range
+  if (startDate || endDate) {
+    whereClause.createdAt = {};
+    if (startDate) {
+      whereClause.createdAt.gte = startDate;
+    }
+    if (endDate) {
+      // Add 1 day to include the end date fully
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      whereClause.createdAt.lt = adjustedEndDate;
+    }
+  }
+
+  // Filter by status
+  if (status) {
+    whereClause.status = status;
+  }
+
+  // Search by user email or transaction ID
+  if (search) {
+    whereClause.OR = [
+      {
+        stripePaymentId: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        user: {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+    ];
+  }
+
+  // Get payments with pagination and filters
+  const payments = await prisma.payment.findMany({
+    where: whereClause,
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: limit,
+    include: {
+      creditPackage: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          creditBalance: true,
+        },
+      },
+    },
+  });
+
+  // Get total count for pagination metadata with the same filters
+  const total = await prisma.payment.count({
+    where: whereClause,
+  });
+
+  return {
+    payments,
+    total,
+  };
+};
 /**
  * Creates a Stripe PaymentIntent for the given credit package,
  * and stores a Payment record with status = PENDING.
@@ -104,3 +217,8 @@ export async function confirmPaymentManually(paymentId: string) {
 
   return updatedPayment;
 }
+
+/* 
+
+
+*/

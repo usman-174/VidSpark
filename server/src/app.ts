@@ -40,7 +40,7 @@ app.use("/api/admin", setUser, restrictTo(["ADMIN"]), adminRouter);
 app.use("/api/packages", setUser, restrictTo(["ADMIN","USER"]), packageRouter);
 app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
 app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
-app.use('/api/payments', setUser, restrictTo(["USER"]),paymentRoutes);
+app.use('/api/payments', setUser, restrictTo(["USER","ADMIN"]),paymentRoutes);
 
 // Start server
 app.listen(PORT, () => {

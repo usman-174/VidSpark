@@ -46,6 +46,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/packages" element={<Packages />} />
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/payment-history" element={<PaymentHistory />} />
             <Route
               path="/sentimental-analysis"
               element={<SentimentAnalysis />}
@@ -59,6 +60,8 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/videos" element={<YTVideos />} />
             {/* Packages */}
+            <Route path="/admin/payments" element={<AdminPayments />} />
+
             <Route path="/admin/packages" element={<PackagesPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
           </Route>
@@ -85,6 +88,8 @@ import UsersPage from "./pages/Admin/Users";
 import Landing from "./pages/Landing";
 import SentimentAnalysis from "./pages/SentimentalAnalysis";
 import Packages from "./pages/Packages";
+import PaymentHistory from "./pages/payments/History";
+import AdminPayments from "./pages/Admin/Payments";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

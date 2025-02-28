@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Package2,
   ChevronRight,
+  Banknote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,8 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
       icon: BarChart,
       label: "Sentiment Analysis",
     },
+    // payment-history
+    { to: "/payment-history", icon: Banknote, label: "Payment History" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -74,6 +77,8 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { to: "/admin/videos", icon: Video, label: "Videos" },
     { to: "/admin/packages", icon: Package2, label: "Packages" },
     { to: "/admin/users", icon: Users, label: "Users" },
+    // /admin/payments
+    { to: "/admin/payments", icon: Banknote, label: "Payments" },
     { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 
