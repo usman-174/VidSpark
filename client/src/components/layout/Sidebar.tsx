@@ -36,12 +36,10 @@ const SidebarLink = ({
     className={cn(
       "flex items-center px-4 py-2 rounded-lg transition-colors duration-200",
       "hover:bg-teal-600", // Darker hover effect
-      isActive && "bg-teal-600 text-white", // Active link highlight
+      isActive && "bg-teal-600 text-white" // Active link highlight
     )}
   >
-    <Icon
-      className={cn("w-5 h-5", isActive ? "text-white" : "text-gray-400")}
-    />
+    <Icon className={cn("w-5 h-5", isActive ? "text-white" : "text-gray-400")} />
     {!isCollapsed && (
       <span className={cn("ml-4", isActive ? "text-white" : "text-gray-300")}>
         {label}
@@ -59,13 +57,15 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const { user } = useAuthStore();
   const location = useLocation();
   const isAdmin = user?.role === "ADMIN";
-  console.log("user", user);
-  
   const userLinks = [
     { to: "/", icon: Home, label: "Home" },
     { to: "/dashboard", icon: Layout, label: "Dashboard" },
     { to: "/profile", icon: User, label: "Profile" },
-    { to: "/sentimental-analysis", icon: BarChart, label: "Sentiment Analysis" },
+    {
+      to: "/sentimental-analysis",
+      icon: BarChart,
+      label: "Sentiment Analysis",
+    },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -82,16 +82,14 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   return (
     <aside
       className={cn(
-        "h-screen border-r bg-teal-700 text-white transition-all duration-300",
+        "h-screen border-r bg-teal-700 text-white transition-all duration-300 relative",
         isCollapsed ? "w-20" : "w-64"
       )}
     >
       <div className="h-16 border-b flex items-center px-4">
         <Link to="/" className="w-full text-center">
           {!isCollapsed ? (
-            <span className="font-semibold text-2xl text-white">
-              VidSpark
-            </span>
+            <span className="font-semibold text-2xl text-white">VidSpark</span>
           ) : (
             <span className="font-semibold text-2xl text-white">V</span>
           )}
@@ -102,7 +100,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         <Button
           variant="ghost"
           size="sm"
-          className=" justify-end ml-auto"
+          className="justify-end ml-auto"
           onClick={onToggle}
         >
           {isCollapsed ? (
@@ -126,10 +124,23 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         </div>
       </nav>
 
+      {/* Call-to-action button for packages (visible only for non-admin users) */}
+      {!isAdmin && (
+        <div className="px-4 py-2">
+          <Link
+            to="/packages"
+            className="flex items-center justify-center gap-2 p-2 bg-white text-teal-700 font-semibold rounded-lg shadow hover:bg-gray-100 transition-colors"
+          >
+            <Package2 className="w-5 h-5" />
+            {!isCollapsed && <span>Buy Credits</span>}
+          </Link>
+        </div>
+      )}
+
       <div className="absolute bottom-0 w-full p-4">
         <div className="flex items-center gap-3">
           <img
-           src={user?.profileImage || "/default-avatar.jpg"}
+            src={user?.profileImage || "/default-avatar.jpg"}
             alt="Profile"
             className="w-8 h-8 rounded-full border bg-gray-100"
           />

@@ -38,15 +38,18 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         {/* Landing page */}
-        <Route path="/landing" element={<Landing/>}/> {/* //Made by Fatima */}
-        
+        <Route path="/landing" element={<Landing />} /> {/* //Made by Fatima */}
         {/* Protected routes with layout */}
         <Route element={<RootLayout />}>
           {/* Common routes */}
           <Route element={<ProtectedRoute allowedRoles={["USER"]} />}>
             <Route path="/" element={<Home />} />
+            <Route path="/packages" element={<Packages />} />
             <Route path="/dashboard" element={<UserDashboard />} />
-            <Route path="/sentimental-analysis" element={<SentimentAnalysis />} />
+            <Route
+              path="/sentimental-analysis"
+              element={<SentimentAnalysis />}
+            />
             {/* Profile */}
             <Route path="/profile" element={<Profile />} />
           </Route>
@@ -81,6 +84,7 @@ import PackagesPage from "./pages/Admin/Packages";
 import UsersPage from "./pages/Admin/Users";
 import Landing from "./pages/Landing";
 import SentimentAnalysis from "./pages/SentimentalAnalysis";
+import Packages from "./pages/Packages";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

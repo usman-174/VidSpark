@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,18 +13,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import axios from "@/api/axiosInstance";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuthStore from "@/store/authStore";
-import { Link } from "react-router-dom";  // Import Link here
 
 const registerSchema = z
   .object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z
-      .string()
-      .min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -35,9 +32,10 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const hasFetchedInvitation = useRef(false);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
 
   const form = useForm<RegisterFormValues>({
@@ -75,11 +73,39 @@ const Register: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchInvitationData = async () => {
+      if (invitationId && !hasFetchedInvitation.current) {
+        hasFetchedInvitation.current = true;
+        try {
+          const response = await axios.get(
+            `/invitations/get-invitations/${invitationId}`
+          );
+          if (response && response.data) {
+            const res = response.data;
+            if (res.isUsed) {
+              toast.error("Invitation link has already been used!");
+              navigate("/login");
+              return;
+            }
+            form.setValue("email", res.inviteeEmail);
+          } else {
+            toast.error("Invalid invitation link!");
+            setSearchParams({});
+          }
+        } catch (error: any) {
+          console.error(error);
+        }
+      }
+    };
+    fetchInvitationData();
+  }, [invitationId, navigate, form, setSearchParams]);
+
   useLayoutEffect(() => {
     if (isAuthenticated) {
       navigate("/");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="flex min-h-screen bg-gradient-to-r from-blue-500 to-purple-600">
@@ -87,7 +113,9 @@ const Register: React.FC = () => {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
         <div className="text-center text-white">
           <h1 className="text-5xl font-bold mb-4">Create an Account</h1>
-          <p className="text-lg">Please fill in the details below to register.</p>
+          <p className="text-lg">
+            Please fill in the details below to register.
+          </p>
         </div>
       </div>
 
@@ -102,6 +130,7 @@ const Register: React.FC = () => {
               <FormField
                 name="email"
                 control={form.control}
+                disabled={!!invitationId && !!form.getValues("email")}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-lg">Email</FormLabel>

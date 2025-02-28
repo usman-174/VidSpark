@@ -1,47 +1,43 @@
 // src/services/paymentService.ts
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, PaymentStatus } from "@prisma/client";
 import Stripe from "stripe";
 
-import { PaymentStatus } from "@prisma/client"; // or however you import the enums
-
+const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2025-01-27.acacia",
   typescript: true,
 });
 
 /**
- * Creates a Stripe PaymentIntent for the selected credit package,
+ * Creates a Stripe PaymentIntent for the given credit package,
  * and stores a Payment record with status = PENDING.
+ * @param user - The full user object
+ * @param creditPackageId - The ID of the selected credit package
+ * @returns { clientSecret, paymentId }
  */
-const prisma = new PrismaClient();
-export async function createPaymentIntent(
-  userId: string,
-  creditPackageId: string
-) {
-  // 1. Retrieve the credit package from DB
+export async function createPaymentIntent(user: any, creditPackageId: string) {
+  // 1. Retrieve the credit package from the DB
   const creditPackage = await prisma.creditPackage.findUnique({
     where: { id: creditPackageId },
   });
-
   if (!creditPackage) {
     throw new Error("Credit package not found");
   }
 
-  // 2. Create a Stripe PaymentIntent
-  //    Stripe amount is in the smallest currency unit (e.g., cents for USD)
+  // 2. Create a Stripe PaymentIntent (amount is in cents)
   const paymentIntent = await stripe.paymentIntents.create({
     amount: Math.round(creditPackage.price * 100),
     currency: "usd",
     metadata: {
-      userId,
+      userId: user.id,
       creditPackageId,
     },
   });
 
-  // 3. Store the Payment in your DB with status = PENDING
+  // 3. Store the Payment record in the DB with status PENDING
   const newPayment = await prisma.payment.create({
     data: {
-      userId,
+      userId: user.id,
       creditPackageId,
       amount: creditPackage.price,
       stripePaymentId: paymentIntent.id,
@@ -49,6 +45,7 @@ export async function createPaymentIntent(
     },
   });
 
+  // 4. Return the clientSecret and internal paymentId
   return {
     clientSecret: paymentIntent.client_secret,
     paymentId: newPayment.id,
@@ -56,46 +53,36 @@ export async function createPaymentIntent(
 }
 
 /**
- * Called when Stripe notifies you via webhook that the PaymentIntent has succeeded (or failed).
- * Updates Payment status, user creditBalance, and inserts a Credit record for auditing.
+ * Manually confirms a Payment by updating its status to SUCCEEDED.
+ * Also increments the user's credit balance and logs a credit record.
+ * @param paymentId - The internal Payment record ID
+ * @returns The updated Payment record.
  */
-export async function handlePaymentStatusUpdate(
-  stripePaymentId: string,
-  status: PaymentStatus
-) {
-  // 1. Find the payment by its Stripe ID
+export async function confirmPaymentManually(paymentId: string) {
+  // 1. Find the Payment record by its internal ID and include the credit package details
   const payment = await prisma.payment.findUnique({
-    where: { stripePaymentId },
-    include: {
-      user: true,
-      creditPackage: true,
-    },
+    where: { id: paymentId },
+    include: { creditPackage: true },
   });
-
   if (!payment) {
-    throw new Error("Payment not found for the given Stripe Payment ID");
+    throw new Error("Payment not found for the given payment ID");
   }
-
-  // 2. If Payment has already been updated, skip
   if (payment.status !== PaymentStatus.PENDING) {
+    // Payment has already been updated; return it directly
     return payment;
   }
 
-  // 3. Update the Payment status in the DB
+  // 2. Update the Payment status in the DB to SUCCEEDED
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: {
-      status,
-    },
-    include: {
-      creditPackage: true,
-    },
+    data: { status: PaymentStatus.SUCCEEDED },
+    include: { creditPackage: true },
   });
 
-  // 4. If succeeded, increment user credits and add a Credit record
-  if (status === PaymentStatus.SUCCEEDED && payment.creditPackage) {
+  // 3. If the payment succeeded, increment the user's credits and log the credit record
+  if (payment.creditPackage) {
     await prisma.$transaction(async (tx) => {
-      // Update the user's credit balance
+      // Update user's credit balance (assumes a creditBalance field exists on User)
       await tx.user.update({
         where: { id: payment.userId },
         data: {
@@ -105,7 +92,7 @@ export async function handlePaymentStatusUpdate(
         },
       });
 
-      // Create a new Credit record for auditing
+      // Create a Credit record for auditing (if you have a Credit model)
       await tx.credit.create({
         data: {
           userId: payment.userId,

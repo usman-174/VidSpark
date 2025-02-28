@@ -15,24 +15,24 @@ const prisma = new PrismaClient();
  * @returns Promise that resolves when the email is sent
  */
 const sendEmail = async (to: string, subject: string, text: string) => {
-    const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com", // Gmail SMTP host
-        port: 587, // TLS Port
-        secure: false, // false for port 587
-        auth: {
-            user: process.env.GMAIL_USER,  // Using the email from environment variables
-            pass: process.env.GMAIL_PASS,  // Using the password from environment variables
-        },
-    });
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com", // Gmail SMTP host
+    port: 587, // TLS Port
+    secure: false, // false for port 587
+    auth: {
+      user: process.env.GMAIL_USER, // Using the email from environment variables
+      pass: process.env.GMAIL_PASS, // Using the password from environment variables
+    },
+  });
 
-    const mailOptions = {
-        from: `"VidSpark" <${process.env.GMAIL_USER}>`, // Sender address
-        to,
-        subject,
-        text,
-    };
+  const mailOptions = {
+    from: `"VidSpark" <${process.env.GMAIL_USER}>`, // Sender address
+    to,
+    subject,
+    text,
+  };
 
-    await transporter.sendMail(mailOptions);
+  await transporter.sendMail(mailOptions);
 };
 
 /**
@@ -41,28 +41,42 @@ const sendEmail = async (to: string, subject: string, text: string) => {
  * @param inviteeEmail Email of the invitee
  * @returns The created invitation
  */
-export const createInvitation = async (inviterId: string, inviteeEmail: string) => {
-   
+export const createInvitation = async (
+  inviterId: string,
+  inviteeEmail: string
+) => {
+  // Save the invitation to the database
+  const invitation = await prisma.invitation.create({
+    data: {
+      inviterId,
+      inviteeEmail,
+    },
+  });
 
-    // Save the invitation to the database
-    const invitation = await prisma.invitation.create({
-        data: {
-            inviterId,
-            inviteeEmail,
-            
-        },
-    });
-    console.log("4");
+  const inviteLink = `${process.env.ORIGIN}/register?invitationId=${invitation.id}`;
+  console.log("Invite Link: ", inviteLink);
 
-    const inviteLink = `${process.env.ORIGIN}/register?invitationId=${invitation.id}`;
-    // Send the invitation email
-    const emailSubject = "You're Invited!";
-    const emailBody = `Hi there, \n\nYou have been invited! Use the following link to register: ${inviteLink} \n\nBest regards, \n VidSpark`;
-   
-  
+  // Send the invitation email
+  const emailSubject = "You're Invited!";
+  const emailBody = `Hi there, \n\nYou have been invited! Use the following link to register: ${inviteLink} \n\nBest regards, \n VidSpark`;
 
+  await sendEmail(inviteeEmail, emailSubject, emailBody);
+  //   update the invitation with the email sent status
+  await prisma.invitation.update({
+    where: {
+      id: invitation.id,
+    },
+    data: {
+      inviteLink,
+    },
+  });
+  return invitation;
+};
 
-    await sendEmail(inviteeEmail, emailSubject, emailBody);
-
-    return invitation;
+export const getInvitationUsingId = async (invitationId: string) => {
+  return prisma.invitation.findUnique({
+    where: {
+      id: invitationId,
+    },
+  });
 };
