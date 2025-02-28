@@ -8,6 +8,7 @@ import {
 import { User } from "@/store/authStore";
 import { FC } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 interface NavbarProps {
   user: User | null;
@@ -21,15 +22,20 @@ export const Navbar: FC<NavbarProps> = ({ user, logout }) => {
   return (
     <header className="h-16 border-b bg-white">
       <div className="flex items-center justify-between h-full px-6">
-      
         <div className="w-1/3">{/* Empty for now */}</div>
-
-       
-
         <div className="w-1/3 flex justify-end items-center gap-4">
           {!isAdmin && (
             <Badge variant="outline" className="h-8 px-3">
-              Credits: {user?.creditBalance || 0}
+              Credits:{" "}
+              <motion.span
+                key={user?.creditBalance}
+                initial={{ scale: 1.2, opacity: 0.5 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="ml-1 inline-block"
+              >
+                {user?.creditBalance || 0}
+              </motion.span>
             </Badge>
           )}
           <DropdownMenu>

@@ -93,7 +93,7 @@ const SentimentAnalysis = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 items-baseline">
           <Card>
             <CardHeader>
               <CardTitle>Video Analysis</CardTitle>
