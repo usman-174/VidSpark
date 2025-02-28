@@ -2,7 +2,7 @@
 import axios from "./axiosInstance";
 
 export interface Video {
-  videoId: string;
+  id: string;
   title: string;
   channelTitle: string;
   thumbnailLink: string;

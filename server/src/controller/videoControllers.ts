@@ -3,6 +3,7 @@ import { initializeDependencies } from "../utils/dependencies";
 import * as youtubeService from "../services/ytService";
 import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
 import axios from "axios";
+import { TfIdf } from "natural";
 
 import vader from "vader-sentiment";
 import { deductCredits } from "../services/userService";
@@ -64,18 +65,44 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to analyze sentiment." });
   }
 };
+// Cache object and duration (in milliseconds)
+let trendingVideosCache: {
+  videos: any[];
+  topKeywords: any[];
+  cachedAt: number;
+} | null = null;
+const CACHE_DURATION = 5; // 5 minutes
+function isEnglish(text: string): boolean {
+  if (!text || text.trim().length < 5) {
+    return true; // Assume very short texts are English.
+  }
+  const trimmed = text.trim();
+  const asciiChars = trimmed.match(/[\x00-\x7F]/g) || [];
+  const asciiRatio = asciiChars.length / trimmed.length;
+  return asciiRatio >= 0.8;
+}
 
-export const getTrendingVideos = async (req: Request, res: Response) => {
+export const getTrendingVideos = async (req: Request, res: Response) :Promise<any>=> {
   try {
-    loadKeysFromDB();
+    // Check if cache exists and is still valid.
+    if (
+      trendingVideosCache &&
+      Date.now() - trendingVideosCache.cachedAt < CACHE_DURATION
+    ) {
+      console.log("Returning cached trending videos");
+      return res.status(200).json(trendingVideosCache);
+    }
+
+    // Load API keys and dependencies.
+    await loadKeysFromDB();
     const { axios } = await initializeDependencies();
 
-    // Fetch the next available YouTube API key from DB
+    // Fetch the next available YouTube API key from DB.
     const YOUTUBE_API_KEY = getNextApiKey();
-    const YOUTUBE_API_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=PK&maxResults=10&key=${YOUTUBE_API_KEY}`;
+    const YOUTUBE_API_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=PK&maxResults=50&key=${YOUTUBE_API_KEY}`;
 
     const response = await axios.get(YOUTUBE_API_URL);
-    const videos = response.data.items.map((video: any) => ({
+    let videos = response.data.items.map((video: any) => ({
       id: video.id,
       title: video.snippet.title,
       description: video.snippet.description,
@@ -86,7 +113,53 @@ export const getTrendingVideos = async (req: Request, res: Response) => {
       snippet: video.snippet,
     }));
 
-    res.status(200).json(videos);
+    // Filter videos to only include those with English titles using our custom isEnglish function.
+    videos = videos.filter((video) => isEnglish(video.title));
+
+    // If no videos remain after filtering, return empty arrays.
+    if (videos.length === 0) {
+      return res.status(200).json({ videos: [], topKeywords: [] });
+    }
+
+    // Initialize TF-IDF and add each video's title and description as a document.
+    const tfidf = new TfIdf();
+    videos.forEach((video) => {
+      const text = `${video.title} ${video.description}`;
+      const cleanedText = text.toLowerCase().replace(/[^\w\s]/gi, "");
+      tfidf.addDocument(cleanedText);
+    });
+
+    // Aggregate keywords across all videos by summing TF-IDF scores.
+    const aggregatedKeywords: { [term: string]: number } = {};
+    for (let i = 0; i < videos.length; i++) {
+      const terms = tfidf.listTerms(i).filter((item) => item.term.length > 2);
+      terms.forEach((item) => {
+        aggregatedKeywords[item.term] =
+          (aggregatedKeywords[item.term] || 0) + item.tfidf;
+      });
+    }
+
+    // Convert the aggregated keywords into an array and sort by score (highest first).
+    const aggregatedKeywordsArray = Object.keys(aggregatedKeywords).map(
+      (term) => ({
+        term,
+        score: aggregatedKeywords[term],
+      })
+    );
+    aggregatedKeywordsArray.sort((a, b) => b.score - a.score);
+
+    // Pick the top 10 keywords.
+    const topKeywords = aggregatedKeywordsArray.slice(0, 10);
+    console.log("Top Keywords:", topKeywords);
+
+    // Cache the response along with the current timestamp.
+    trendingVideosCache = {
+      videos,
+      topKeywords,
+      cachedAt: Date.now(),
+    };
+
+    res.status(200).json(trendingVideosCache);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

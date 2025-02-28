@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import axiosInstance from "@/api/axiosInstance";
+import { Video } from "@/api/videoApi";
 import {
   Card,
   CardContent,
@@ -6,18 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, Search, Clock } from "lucide-react";
-import axiosInstance from "@/api/axiosInstance";
 import { getPopularKeywords } from "@/lib/utils";
+import { Clock, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const Home = () => {
-  const [searchText, setSearchText] = useState("");
-  const [trendingVideos, setTrendingVideos] = useState<any[]>([]);
+  // const [searchText, setSearchText] = useState("");
+  const [trendingVideos, setTrendingVideos] = useState<any>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,7 +35,6 @@ const Home = () => {
       setIsLoading(false);
     }
   };
-
   const VideoCard = ({ video }: { video: any }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
       <div className="aspect-video relative">
@@ -57,6 +54,14 @@ const Home = () => {
           <span>{video.views} views</span>
           <span className="mx-2">•</span>
           <span>{video.uploadedAt}</span>
+        </div>
+        <div className="mt-2">
+          <Link
+            to={`/sentimental-analysis?videoId=${video.id}`}
+            className="text-blue-500 hover:underline text-sm"
+          >
+            Analyze Sentiment
+          </Link>
         </div>
       </CardContent>
     </Card>
@@ -104,7 +109,7 @@ const Home = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {trendingVideos.map((video) => (
+                  {trendingVideos?.videos?.map((video: Video) => (
                     <VideoCard key={video.id} video={video} />
                   ))}
                 </div>
@@ -114,7 +119,7 @@ const Home = () => {
         </div>
 
         {/* Sidebar */}
-        <Card className="h-fit">
+        {/* <Card className="h-fit">
           <CardHeader>
             <CardTitle className="text-lg">Popular Keywords</CardTitle>
             <CardDescription>Trending topics in recent videos</CardDescription>
@@ -139,7 +144,7 @@ const Home = () => {
               </div>
             </ScrollArea>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
