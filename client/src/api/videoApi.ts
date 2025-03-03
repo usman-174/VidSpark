@@ -4,6 +4,7 @@ import axios from "./axiosInstance";
 export interface Video {
   id: string;
   title: string;
+  videoId: string;
   channelTitle: string;
   thumbnailLink: string;
   viewCount: number;
