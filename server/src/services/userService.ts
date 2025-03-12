@@ -1,7 +1,5 @@
-// src/services/userService.ts
-
 import { hashPassword } from "../utils/hashUtils";
-import { PrismaClient, Role, User } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 
 export interface UserData {
   email?: string;
@@ -9,7 +7,12 @@ export interface UserData {
   password?: string;
   role?: Role;
   profileImage?: string;
+  gender?: string; // used for registration only
 }
+
+// Define a separate type for updates that omits gender
+export type UserUpdateData = Partial<Omit<UserData, "gender">>;
+
 const prisma = new PrismaClient();
 
 export const getUsers = async () => {
@@ -17,7 +20,7 @@ export const getUsers = async () => {
     select: {
       id: true,
       email: true,
-
+      gender: true, // still returned when fetching users
       role: true,
       profileImage: true,
       createdAt: true,
@@ -46,7 +49,7 @@ export const getUserById = async (id: string) => {
     select: {
       id: true,
       email: true,
-
+      gender: true, // still returned when fetching a user by id
       role: true,
       profileImage: true,
       createdAt: true,
@@ -63,7 +66,7 @@ export const getUserById = async (id: string) => {
   return { ...user, totalCredits: totalCredits._sum.credits || 0 };
 };
 
-export const updateUser = async (id: string, data: UserData) => {
+export const updateUser = async (id: string, data: UserUpdateData) => {
   const updateData: any = { ...data };
 
   if (data.password) {
@@ -76,7 +79,7 @@ export const updateUser = async (id: string, data: UserData) => {
     select: {
       id: true,
       email: true,
-
+      gender: true, // returned for reference
       role: true,
       profileImage: true,
     },
@@ -95,7 +98,6 @@ export const deductCredits = async (userId: string, credits: number) => {
       credits: -credits,
     },
   });
-  // update user creditBalance (user.creditBalance - credits)
   await prisma.user.update({
     where: { id: userId },
     data: {

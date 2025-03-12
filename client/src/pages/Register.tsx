@@ -16,12 +16,15 @@ import axios from "@/api/axiosInstance";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuthStore from "@/store/authStore";
+import { User, ChevronDown } from "lucide-react";
 
+// Update schema to include gender
 const registerSchema = z
   .object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+    gender: z.enum(["male", "female"], { required_error: "Gender is required" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -44,6 +47,7 @@ const Register: React.FC = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      gender: "male",
     },
   });
 
@@ -54,13 +58,12 @@ const Register: React.FC = () => {
         email: values.email,
         password: values.password,
         invitationId: invitationId || undefined,
+        gender: values.gender,
       });
-
       toast.success("Registration successful! Please login.");
       navigate("/login");
     } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Something went wrong";
+      const errorMessage = error.response?.data?.error || "Something went wrong";
       toast.error(errorMessage);
       if (error.response?.status === 409) {
         form.setError("email", {
@@ -78,9 +81,7 @@ const Register: React.FC = () => {
       if (invitationId && !hasFetchedInvitation.current) {
         hasFetchedInvitation.current = true;
         try {
-          const response = await axios.get(
-            `/invitations/get-invitations/${invitationId}`
-          );
+          const response = await axios.get(`/invitations/get-invitations/${invitationId}`);
           if (response && response.data) {
             const res = response.data;
             if (res.isUsed) {
@@ -113,18 +114,14 @@ const Register: React.FC = () => {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
         <div className="text-center text-white">
           <h1 className="text-5xl font-bold mb-4">Create an Account</h1>
-          <p className="text-lg">
-            Please fill in the details below to register.
-          </p>
+          <p className="text-lg">Please fill in the details below to register.</p>
         </div>
       </div>
 
       {/* Right Side - Register Form */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
-            Register
-          </h2>
+          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Register</h2>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -145,6 +142,34 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
+              {/* Redesigned Gender Select Field */}
+              <FormField
+                name="gender"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Gender</FormLabel>
+                    <FormControl>
+                      <div className="relative inline-block w-full">
+                        <select
+                          {...field}
+                          className="appearance-none w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200 pr-10"
+                        >
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />
+                        </div>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 name="password"
                 control={form.control}
@@ -163,6 +188,7 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
               <FormField
                 name="confirmPassword"
                 control={form.control}
@@ -181,6 +207,7 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
               <div className="flex justify-between text-sm text-gray-600">
                 <p>
                   Already have an account?{" "}
@@ -189,6 +216,7 @@ const Register: React.FC = () => {
                   </Link>
                 </p>
               </div>
+
               <Button
                 type="submit"
                 disabled={loading}

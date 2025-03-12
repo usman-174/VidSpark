@@ -7,12 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 model User {
   id              String       @id @default(uuid())
   email           String       @unique
   password        String
   profileImage    String?
-  gender          String?
+  gender          Gender?      // Updated to use the Gender enum
   createdAt       DateTime     @default(now())
   resetToken      String?
   role            Role         @default(USER)
