@@ -6,14 +6,21 @@ import {
   forgetPasswordService,
   getUser,
 } from "../services/authService";
+import { Gender } from "@prisma/client";
 
 export const registerUser = async (req: Request, res: Response) => {
   // Now we grab inviterId if it’s included in the request body
-  const { email, password, invitationId } = req.body;
-
+  const { email, password, invitationId, name, gender } = req.body;
+  const processedGender = gender === "male" ? Gender.MALE : Gender.FEMALE;
   try {
     // Pass invitationId to the register service
-    const user = await register(email, password, invitationId);
+    const user = await register(
+      email,
+      password,
+      name,
+      processedGender,
+      invitationId
+    );
 
     res.status(201).json({ message: "User registered successfully", user });
   } catch (error: any) {

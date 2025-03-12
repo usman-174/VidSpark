@@ -14,10 +14,11 @@ enum Gender {
 
 model User {
   id              String       @id @default(uuid())
+  name            String?
   email           String       @unique
   password        String
   profileImage    String?
-  gender          Gender?      // Updated to use the Gender enum
+  gender          Gender? // Updated to use the Gender enum
   createdAt       DateTime     @default(now())
   resetToken      String?
   role            Role         @default(USER)

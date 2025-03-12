@@ -7,10 +7,11 @@ type Role = "USER" | "ADMIN";
 export interface User {
   id: string;
   email: string;
+  name?: string;
+  gender?: "MALE"|"FEMALE";
   role: Role;
   creditBalance?: number; 
   profileImage?: string;
-  gender?: string;
   parentId?: string;
   totalCredits?: number;
   createdAt: string;

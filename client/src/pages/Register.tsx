@@ -1,22 +1,21 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import axios from "@/api/axiosInstance";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import axios from "@/api/axiosInstance";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import { Input } from "@/components/ui/input";
 import useAuthStore from "@/store/authStore";
-import { User, ChevronDown } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "react-hot-toast";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import * as z from "zod";
 
 // Update schema to include gender
 const registerSchema = z
@@ -25,6 +24,7 @@ const registerSchema = z
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
     gender: z.enum(["male", "female"], { required_error: "Gender is required" }),
+    name : z.string().min(3, "Name must be at least 3 characters"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -47,6 +47,7 @@ const Register: React.FC = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      name: "",
       gender: "male",
     },
   });
@@ -59,6 +60,7 @@ const Register: React.FC = () => {
         password: values.password,
         invitationId: invitationId || undefined,
         gender: values.gender,
+        name : values.name,
       });
       toast.success("Registration successful! Please login.");
       navigate("/login");
@@ -124,6 +126,24 @@ const Register: React.FC = () => {
           <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Register</h2>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+                name="name"
+                control={form.control}
+                disabled={!!invitationId && !!form.getValues("name")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your Name"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 name="email"
                 control={form.control}
@@ -143,7 +163,7 @@ const Register: React.FC = () => {
                 )}
               />
 
-              {/* Redesigned Gender Select Field */}
+              {/* Redesigned Gender Radio Button Field */}
               <FormField
                 name="gender"
                 control={form.control}
@@ -151,18 +171,27 @@ const Register: React.FC = () => {
                   <FormItem>
                     <FormLabel className="text-lg">Gender</FormLabel>
                     <FormControl>
-                      <div className="relative inline-block w-full">
-                        <select
-                          {...field}
-                          className="appearance-none w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200 pr-10"
-                        >
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <User className="w-4 h-4 text-gray-500" />
-                          <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />
-                        </div>
+                      <div className="flex items-center space-x-6">
+                        <label className="inline-flex items-center">
+                          <input
+                            type="radio"
+                            value="male"
+                            checked={field.value === "male"}
+                            onChange={() => field.onChange("male")}
+                            className="form-radio"
+                          />
+                          <span className="ml-2">Male</span>
+                        </label>
+                        <label className="inline-flex items-center">
+                          <input
+                            type="radio"
+                            value="female"
+                            checked={field.value === "female"}
+                            onChange={() => field.onChange("female")}
+                            className="form-radio"
+                          />
+                          <span className="ml-2">Female</span>
+                        </label>
                       </div>
                     </FormControl>
                     <FormMessage />
