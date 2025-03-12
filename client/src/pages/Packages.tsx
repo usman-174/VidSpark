@@ -53,20 +53,16 @@ interface CreditPackage {
   createdAt: string;
 }
 
-// Calculate cost per credit for each package
 const calculateUnitCost = (price: number, credits: number): number => {
   return price / credits;
 };
 
-// Get package features based on tier
 const getPackageFeatures = (pkg: CreditPackage, isPopular: boolean): string[] => {
   const baseFeatures = [
     `${pkg.credits} credits to use at any time`,
     "No expiration date",
     "Access to all standard features"
   ];
-  
-  // Add tier-specific features
   if (isPopular) {
     return [...baseFeatures, "Priority support", "10% bonus credits on renewal"];
   } else if (pkg.price > 50) {
@@ -76,22 +72,17 @@ const getPackageFeatures = (pkg: CreditPackage, isPopular: boolean): string[] =>
   }
 };
 
-// Get savings message if applicable
 const getSavingsMessage = (pkg: CreditPackage, packages: CreditPackage[]): string | null => {
-  // Only show for non-basic packages
   if (packages.length <= 1 || pkg.id === packages[0].id) {
     return null;
   }
-  
   const basicPkg = packages[0];
   const basicUnitCost = calculateUnitCost(basicPkg.price, basicPkg.credits);
   const currentUnitCost = calculateUnitCost(pkg.price, pkg.credits);
-  
   if (currentUnitCost < basicUnitCost) {
     const savingsPercent = Math.round((1 - (currentUnitCost / basicUnitCost)) * 100);
     return savingsPercent >= 5 ? `Save ${savingsPercent}% per credit` : null;
   }
-  
   return null;
 };
 
@@ -107,13 +98,9 @@ const Packages: React.FC = () => {
       setLoading(true);
       try {
         const response = await packagesAPI.getPackages();
-        // Sort packages by price for consistent display
-        const sortedPackages = response.sort((a:any, b:any) => a.price - b.price);
+        const sortedPackages = response.sort((a: any, b: any) => a.price - b.price);
         setPackages(sortedPackages);
-        
-        // Auto-select a recommended package if available
         if (sortedPackages.length > 0) {
-          // Find a middle-tier package to recommend by default
           const recommendedIndex = Math.min(1, sortedPackages.length - 1);
           setSelectedPackageId(sortedPackages[recommendedIndex].id);
         }
@@ -128,15 +115,9 @@ const Packages: React.FC = () => {
   }, []);
 
   const getPopularPackageId = () => {
-    // Logic to determine which package to mark as popular
-    // Typically the middle-tier package in a 3-tier system
-    if (packages.length >= 3) {
-      return packages[1].id;
-    } else if (packages.length === 2) {
-      return packages[1].id;
-    } else if (packages.length === 1) {
-      return packages[0].id;
-    }
+    if (packages.length >= 3) return packages[1].id;
+    if (packages.length === 2) return packages[1].id;
+    if (packages.length === 1) return packages[0].id;
     return "";
   };
 
@@ -148,12 +129,10 @@ const Packages: React.FC = () => {
 
   const handleContinueToPayment = () => {
     setActiveTab("payment");
-    // document.querySelector('[data-value="payment"]')?.click();
   };
 
   const handleBackToPackages = () => {
     setActiveTab("packages");
-    // document.querySelector('[data-value="packages"]')?.click();
   };
 
   const selectedPackage = packages.find(pkg => pkg.id === selectedPackageId);
@@ -164,29 +143,27 @@ const Packages: React.FC = () => {
       .map(pkg => {
         const diff = selectedPackage.credits - pkg.credits;
         const percentDiff = Math.round((diff / pkg.credits) * 100);
-        return { 
-          name: pkg.name, 
-          diff, 
-          percentDiff 
-        };
+        return { name: pkg.name, diff, percentDiff };
       })
       .filter(comp => comp.diff > 0)
       .sort((a, b) => b.percentDiff - a.percentDiff)
       .slice(0, 1)
   ) : [];
+
   const handleRefreshBalance = () => {
     useAuthStore.getState().refreshUser();
-  }
+  };
+
   return (
     <div className="container mx-auto py-10 px-4 max-w-5xl">
       {/* Hero section */}
       <div className="relative text-center mb-12 py-8">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 rounded-xl"></div>
         <div className="relative z-10">
-          <Badge variant="outline" className="bg-white mb-3 px-3 py-1 text-sm font-medium text-indigo-600 border-indigo-200">
+          <Badge variant="outline" className="bg-white mb-3 px-3 py-1 text-sm font-medium text-teal-700 border-teal-200">
             Power up your account
           </Badge>
-          <h1 className="text-4xl font-bold tracking-tight mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700">
+          <h1 className="text-4xl font-bold tracking-tight mb-3 text-teal-700">
             Get More Credits
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-4">
@@ -213,14 +190,14 @@ const Packages: React.FC = () => {
       {user && (
         <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-8 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-indigo-700">
+            <p className="text-sm font-medium text-teal-700">
               Welcome back, {user.email}
             </p>
-            <p className="text-sm text-indigo-600">
+            <p className="text-sm text-teal-700">
               Your current balance: <span className="font-bold">{user.creditBalance} credits</span>
             </p>
           </div>
-          <Button onClick={handleRefreshBalance} variant="outline" className="text-indigo-700 border-indigo-200 hover:bg-indigo-100">
+          <Button onClick={handleRefreshBalance} variant="outline" className="text-teal-700 border-teal-200 hover:bg-teal-100">
             <RefreshCw className="h-4 w-4 mr-1.5" />
             Refresh Balance
           </Button>
@@ -230,12 +207,18 @@ const Packages: React.FC = () => {
       <div className="grid gap-8">
         <Tabs defaultValue="packages" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="packages" className="text-base">
-              <Package className="w-4 h-4 mr-2" />
+            <TabsTrigger 
+              value="packages" 
+              className={`text-base ${activeTab === "packages" ? "bg-teal-700 text-white" : "text-inherit"}`}
+            >
+              <Package className="w-4 h-4 mr-2 text-teal-700" />
               Choose Package
             </TabsTrigger>
-            <TabsTrigger value="payment" className="text-base">
-              <CreditCard className="w-4 h-4 mr-2" />
+            <TabsTrigger 
+              value="payment" 
+              className={`text-base ${activeTab === "payment" ? "bg-teal-700 text-white" : "text-inherit"}`}
+            >
+              <CreditCard className="w-4 h-4 mr-2 text-teal-700" />
               Payment Details
             </TabsTrigger>
           </TabsList>
@@ -281,7 +264,6 @@ const Packages: React.FC = () => {
                     {packages.map((pkg, index) => {
                       const isPopular = pkg.id === popularPackageId;
                       const unitCost = calculateUnitCost(pkg.price, pkg.credits).toFixed(3);
-                      const features = getPackageFeatures(pkg, isPopular);
                       const savingsMessage = getSavingsMessage(pkg, packages);
                       
                       return (
@@ -289,25 +271,18 @@ const Packages: React.FC = () => {
                           key={pkg.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ 
-                            duration: 0.4, 
-                            delay: index * 0.1,
-                            type: "spring", 
-                            stiffness: 100 
-                          }}
+                          transition={{ duration: 0.4, delay: index * 0.1, type: "spring", stiffness: 100 }}
                           whileHover={{ y: -5 }}
                         >
                           <Card 
-                            className={`overflow-hidden h-full border ${
-                              isPopular ? 'border-indigo-300' : 'border-gray-200'
-                            } ${
+                            className={`overflow-hidden h-full border ${isPopular ? 'border-indigo-300' : 'border-gray-200'} ${
                               selectedPackageId === pkg.id
-                                ? "ring-2 ring-indigo-500 shadow-lg"
+                                ? "ring-2 ring-teal-500 shadow-lg"
                                 : "hover:shadow-md"
                             }`}
                           >
                             {isPopular && (
-                              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-sm font-medium">
+                              <div className="bg-teal-700 text-white text-center py-1.5 text-sm font-medium">
                                 MOST POPULAR
                               </div>
                             )}
@@ -316,7 +291,7 @@ const Packages: React.FC = () => {
                               <div className="flex justify-between items-center">
                                 <CardTitle className="text-xl">{pkg.name}</CardTitle>
                                 {isPopular && (
-                                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                  <Badge variant="outline" className="text-sm font-medium text-teal-700">
                                     <Award className="h-3 w-3 mr-1" />
                                     Best Value
                                   </Badge>
@@ -344,15 +319,13 @@ const Packages: React.FC = () => {
                               </div>
 
                               <div className="flex items-center text-base font-medium">
-                                <Zap className="h-5 w-5 text-indigo-500 mr-2" />
+                                <Zap className="h-5 w-5 text-teal-700 mr-2" />
                                 <span><strong>{pkg.credits.toLocaleString()}</strong> Credits</span>
                               </div>
                               
                               <div className="text-xs text-muted-foreground bg-slate-50 px-2 py-1 rounded inline-flex items-center">
                                 <span>${unitCost} per credit</span>
                               </div>
-                              
-                             
                             </CardContent>
                             
                             <CardFooter className="p-4 pt-0">
@@ -360,9 +333,9 @@ const Packages: React.FC = () => {
                                 onClick={() => handlePackageSelect(pkg.id)}
                                 className={`w-full py-2.5 px-4 rounded-md transition-all ${
                                   selectedPackageId === pkg.id
-                                    ? "bg-indigo-600 text-white shadow-md"
+                                    ? "bg-teal-700 text-white shadow-md"
                                     : isPopular
-                                      ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200"
+                                      ? "bg-indigo-100 text-teal-700 hover:bg-teal-700 hover:text-white border border-teal-200"
                                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                                 }`}
                               >
@@ -386,16 +359,16 @@ const Packages: React.FC = () => {
                 transition={{ duration: 0.3 }}
               >
                 {selectedPackage && creditComparison.length > 0 && (
-                  <p className="text-indigo-700 mb-3 text-sm font-medium">
+                  <p className="text-teal-700 mb-3 text-sm font-medium">
                     Get {creditComparison[0].diff.toLocaleString()} more credits ({creditComparison[0].percentDiff}% more) than the {creditComparison[0].name} package!
                   </p>
                 )}
                 
                 <button
                   onClick={handleContinueToPayment}
-                  className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-md shadow-md hover:bg-indigo-700 transition-colors"
+                  className="flex items-center px-6 py-3 bg-teal-700 text-white rounded-md shadow-md hover:bg-teal-700 transition-colors"
                 >
-                  <CreditCard className="mr-2 h-5 w-5" />
+                  <CreditCard className="mr-2 h-5 w-5 text-teal-700" />
                   Continue to Payment
                 </button>
                 
@@ -420,7 +393,7 @@ const Packages: React.FC = () => {
             <div className="flex items-center mb-4">
               <button 
                 onClick={handleBackToPackages}
-                className="text-sm flex items-center text-indigo-600 hover:text-indigo-800"
+                className="text-sm flex items-center text-teal-700 hover:text-teal-800"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -434,11 +407,11 @@ const Packages: React.FC = () => {
                 <Card className="shadow-md">
                   <CardHeader>
                     <CardTitle className="text-xl flex items-center">
-                      <CreditCard className="mr-2 h-5 w-5 text-indigo-500" />
+                      <CreditCard className="mr-2 h-5 w-5 text-teal-700" />
                       Payment Details
                     </CardTitle>
-                    <CardDescription>
-                      Complete your purchase securely with Stripe
+                    <CardDescription className="text-teal-700">
+                      Your payment information is securely processed using 256-bit SSL encryption. We do not store your card details.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -509,21 +482,19 @@ const Packages: React.FC = () => {
                   </CardContent>
                   <CardFooter className="bg-slate-50 px-6 py-4 text-sm space-y-2">
                     <div className="flex items-center text-muted-foreground">
-                      <Shield className="h-4 w-4 mr-1.5 text-indigo-500" />
+                      <Shield className="h-4 w-4 mr-1.5 text-teal-700" />
                       <span>Secure 256-bit SSL encryption</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
-                      <Zap className="h-4 w-4 mr-1.5 text-indigo-500" />
+                      <Zap className="h-4 w-4 mr-1.5 text-teal-700" />
                       <span>Credits delivered instantly</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
-                      <Clock className="h-4 w-4 mr-1.5 text-indigo-500" />
+                      <Clock className="h-4 w-4 mr-1.5 text-teal-700" />
                       <span>No recurring charges</span>
                     </div>
                   </CardFooter>
                 </Card>
-                
-             
               </div>
             </div>
 
