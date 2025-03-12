@@ -1,27 +1,30 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import axios from "@/api/axiosInstance";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import axios from "@/api/axiosInstance";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import { Input } from "@/components/ui/input";
 import useAuthStore from "@/store/authStore";
+import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "react-hot-toast";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import * as z from "zod";
 
+// Update schema to include gender
 const registerSchema = z
   .object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+    gender: z.enum(["male", "female"], { required_error: "Gender is required" }),
+    name : z.string().min(3, "Name must be at least 3 characters"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -44,6 +47,8 @@ const Register: React.FC = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      name: "",
+      gender: "male",
     },
   });
 
@@ -54,13 +59,13 @@ const Register: React.FC = () => {
         email: values.email,
         password: values.password,
         invitationId: invitationId || undefined,
+        gender: values.gender,
+        name : values.name,
       });
-
       toast.success("Registration successful! Please login.");
       navigate("/login");
     } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Something went wrong";
+      const errorMessage = error.response?.data?.error || "Something went wrong";
       toast.error(errorMessage);
       if (error.response?.status === 409) {
         form.setError("email", {
@@ -78,9 +83,7 @@ const Register: React.FC = () => {
       if (invitationId && !hasFetchedInvitation.current) {
         hasFetchedInvitation.current = true;
         try {
-          const response = await axios.get(
-            `/invitations/get-invitations/${invitationId}`
-          );
+          const response = await axios.get(`/invitations/get-invitations/${invitationId}`);
           if (response && response.data) {
             const res = response.data;
             if (res.isUsed) {
@@ -113,20 +116,34 @@ const Register: React.FC = () => {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
         <div className="text-center text-white">
           <h1 className="text-5xl font-bold mb-4">Create an Account</h1>
-          <p className="text-lg">
-            Please fill in the details below to register.
-          </p>
+          <p className="text-lg">Please fill in the details below to register.</p>
         </div>
       </div>
 
       {/* Right Side - Register Form */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
-            Register
-          </h2>
+          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Register</h2>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+                name="name"
+                control={form.control}
+                disabled={!!invitationId && !!form.getValues("name")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your Name"
+                        {...field}
+                        className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 name="email"
                 control={form.control}
@@ -145,6 +162,43 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
+              {/* Redesigned Gender Radio Button Field */}
+              <FormField
+                name="gender"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Gender</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center space-x-6">
+                        <label className="inline-flex items-center">
+                          <input
+                            type="radio"
+                            value="male"
+                            checked={field.value === "male"}
+                            onChange={() => field.onChange("male")}
+                            className="form-radio"
+                          />
+                          <span className="ml-2">Male</span>
+                        </label>
+                        <label className="inline-flex items-center">
+                          <input
+                            type="radio"
+                            value="female"
+                            checked={field.value === "female"}
+                            onChange={() => field.onChange("female")}
+                            className="form-radio"
+                          />
+                          <span className="ml-2">Female</span>
+                        </label>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 name="password"
                 control={form.control}
@@ -163,6 +217,7 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
               <FormField
                 name="confirmPassword"
                 control={form.control}
@@ -181,6 +236,7 @@ const Register: React.FC = () => {
                   </FormItem>
                 )}
               />
+
               <div className="flex justify-between text-sm text-gray-600">
                 <p>
                   Already have an account?{" "}
@@ -189,6 +245,7 @@ const Register: React.FC = () => {
                   </Link>
                 </p>
               </div>
+
               <Button
                 type="submit"
                 disabled={loading}

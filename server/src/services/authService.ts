@@ -1,5 +1,5 @@
 //src/services/authService.ts
-import { PolicyType, PrismaClient } from "@prisma/client";
+import { Gender, PolicyType, PrismaClient } from "@prisma/client";
 import { comparePassword, hashPassword } from "../utils/hashUtils";
 import { generateToken } from "../utils/jwtUtils";
 import nodemailer from "nodemailer";
@@ -9,6 +9,8 @@ const prisma = new PrismaClient();
 export const register = async (
   email: string,
   password: string,
+  name: string,
+  gender: Gender,
   invitationId?: string
 ) => {
   // Pre-check for an existing user outside of the transaction
@@ -36,7 +38,7 @@ export const register = async (
       }
       // check expiration
       console.log("Show expiration", invitation.expiresAt, new Date());
-      
+
       if (invitation.expiresAt < new Date()) {
         throw new Error("Invitation is expired");
       }
@@ -63,6 +65,8 @@ export const register = async (
       data: {
         email,
         password: hashedPassword,
+        name,
+        gender,
         parentId,
         creditBalance: firstSignupPolicy?.credits ?? 0,
         credits: {
@@ -266,10 +270,8 @@ export const getUserByEmail = async (email: string) => {
   });
 };
 
-
 export const getInvitationsByUserId = async (userId: string) => {
-
   return prisma.invitation.findMany({
     where: { inviterId: userId },
   });
-}
+};
