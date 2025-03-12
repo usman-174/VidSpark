@@ -60,7 +60,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const isAdmin = user?.role === "ADMIN";
   const userLinks = [
     { to: "/", icon: Home, label: "Home" },
-    { to: "/dashboard", icon: Layout, label: "Dashboard" },
+    // { to: "/dashboard", icon: Layout, label: "Dashboard" },
     { to: "/profile", icon: User, label: "Profile" },
     {
       to: "/sentimental-analysis",
@@ -69,7 +69,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     },
     // payment-history
     { to: "/payment-history", icon: Banknote, label: "Payment History" },
-    { to: "/settings", icon: Settings, label: "Settings" },
+    // { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
   const adminLinks = [
@@ -79,7 +79,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { to: "/admin/users", icon: Users, label: "Users" },
     // /admin/payments
     { to: "/admin/payments", icon: Banknote, label: "Payments" },
-    { to: "/admin/settings", icon: Settings, label: "Settings" },
+    // { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 
   const links = isAdmin ? adminLinks : userLinks;

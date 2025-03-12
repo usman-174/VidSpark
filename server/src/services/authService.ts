@@ -34,6 +34,13 @@ export const register = async (
       if (invitation.inviteeEmail !== email) {
         throw new Error("Invalid invitation or email mismatch");
       }
+      // check expiration
+      console.log("Show expiration", invitation.expiresAt, new Date());
+      
+      if (invitation.expiresAt < new Date()) {
+        throw new Error("Invitation is expired");
+      }
+
       // Mark the invitation as used
       await tx.invitation.update({
         where: { id: invitationId },

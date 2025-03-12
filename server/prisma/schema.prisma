@@ -31,6 +31,7 @@ model Invitation {
   inviteeEmail String
   inviteLink   String?
   isUsed       Boolean  @default(false)
+  expiresAt    DateTime @default(dbgenerated("(NOW() + INTERVAL '1 hour')"))
   createdAt    DateTime @default(now())
   inviter      User     @relation("UserInvitations", fields: [inviterId], references: [id])
 

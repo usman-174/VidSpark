@@ -152,9 +152,9 @@ export default function PackagesPage() {
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Credit Packages</h1>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        {/* <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Add Package
-        </Button>
+        </Button> */}
       </div>
 
       <Table>
