@@ -367,21 +367,14 @@ export default function AdminPayments() {
       </div>
 
       {/* Alert messages */}
-      {showExportAlert && (
-        <Alert
-          className={`${
-            exportStatus === "success"
-              ? "bg-green-50 text-green-700 border-green-200"
-              : "bg-red-50 text-red-700 border-red-200"
-          }`}
-        >
+      {showExportAlert && exportStatus === "success" && (
+        <Alert className="bg-green-50 text-green-700 border-green-200">
           <AlertDescription>
-            {exportStatus === "success"
-              ? "Payment transactions successfully exported to CSV"
-              : "Failed to export payment transactions. Please try again."}
+            Payment transactions successfully exported to CSV
           </AlertDescription>
         </Alert>
       )}
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -411,8 +404,8 @@ export default function AdminPayments() {
             <p className="text-sm text-muted-foreground">
               {metadata.totalItems > 0
                 ? `${((stats.successCount / metadata.totalItems) * 100).toFixed(
-                    1
-                  )}%`
+                  1
+                )}%`
                 : "0%"}
             </p>
           </CardContent>
@@ -431,8 +424,8 @@ export default function AdminPayments() {
             <p className="text-sm text-muted-foreground">
               {metadata.totalItems > 0
                 ? `${((stats.failedCount / metadata.totalItems) * 100).toFixed(
-                    1
-                  )}%`
+                  1
+                )}%`
                 : "0%"}
             </p>
           </CardContent>
@@ -451,8 +444,8 @@ export default function AdminPayments() {
             <p className="text-sm text-muted-foreground">
               {metadata.totalItems > 0
                 ? `${((stats.pendingCount / metadata.totalItems) * 100).toFixed(
-                    1
-                  )}%`
+                  1
+                )}%`
                 : "0%"}
             </p>
           </CardContent>

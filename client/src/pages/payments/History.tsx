@@ -14,11 +14,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Loader2, 
-  Download, 
+import {
+  Loader2,
+  Download,
   Check,
-  AlertCircle 
+  AlertCircle
 } from "lucide-react";
 import { paymentAPI, Payment } from "@/api/paymentsApi";
 import {
@@ -45,7 +45,7 @@ export default function PaymentHistory() {
     queryKey: ['my-payments', page, limit],
     queryFn: () => paymentAPI.getMyPayments({ page, limit }),
   });
-  
+
   const handlePageChange = ({ selected }: { selected: number }) => {
     setSearchParams({
       page: (selected + 1).toString(),
@@ -63,22 +63,22 @@ export default function PaymentHistory() {
   const exportToCSV = async () => {
     try {
       setExportStatus("exporting");
-      
+
       // Get all payments for export (we'll fetch them all, not just the current page)
       const response = await paymentAPI.getMyPayments({ page: 1, limit: 1000 });
       const allPayments = response?.data || [];
-      
+
       // Convert payments to CSV format
       const headers = [
-        "Date", 
-        "Time", 
-        "Package", 
-        "Credits", 
-        "Amount ($)", 
-        "Transaction ID", 
+        "Date",
+        "Time",
+        "Package",
+        "Credits",
+        "Amount ($)",
+        "Transaction ID",
         "Status"
       ];
-      
+
       const csvRows = allPayments.map((payment: Payment) => {
         const date = new Date(payment.createdAt);
         return [
@@ -91,13 +91,13 @@ export default function PaymentHistory() {
           payment.status
         ];
       });
-      
+
       // Convert to CSV string
       const csvContent = [
         headers.join(","),
         ...csvRows.map(row => row.join(","))
       ].join("\n");
-      
+
       // Create and download the file
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -107,21 +107,21 @@ export default function PaymentHistory() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       setExportStatus("success");
       setShowExportAlert(true);
-      
+
       // Reset status after a delay
       setTimeout(() => {
         setExportStatus("idle");
         setTimeout(() => setShowExportAlert(false), 3000);
       }, 2000);
-      
+
     } catch (err) {
       console.error("Export failed:", err);
       setExportStatus("error");
       setShowExportAlert(true);
-      
+
       // Reset status after a delay
       setTimeout(() => {
         setExportStatus("idle");
@@ -163,7 +163,7 @@ export default function PaymentHistory() {
   // Get total credits purchased
   const totalCredits = payments
     .filter((payment: Payment) => payment.status === "SUCCEEDED")
-    .reduce((sum: number, payment: Payment) => 
+    .reduce((sum: number, payment: Payment) =>
       sum + (payment.creditPackage?.credits || 0), 0);
 
   const getStatusColor = (status: string) => {
@@ -215,13 +215,13 @@ export default function PaymentHistory() {
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Payment History</h2>
-        
+
         {metadata.totalItems > 0 && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  onClick={exportToCSV} 
+                <Button
+                  onClick={exportToCSV}
                   disabled={exportStatus === "exporting"}
                   variant={exportStatus === "success" ? "outline" : "default"}
                   className={exportStatus === "success" ? "bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800" : ""}
@@ -237,15 +237,14 @@ export default function PaymentHistory() {
         )}
       </div>
 
-      {showExportAlert && (
-        <Alert className={`${exportStatus === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+      {showExportAlert && exportStatus === "success" && (
+        <Alert className="bg-green-50 text-green-700 border-green-200">
           <AlertDescription>
-            {exportStatus === "success" 
-              ? "Payment history successfully exported to CSV" 
-              : "Failed to export payment history. Please try again."}
+            Payment history successfully exported to CSV
           </AlertDescription>
         </Alert>
       )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -258,7 +257,7 @@ export default function PaymentHistory() {
             <p className="text-2xl font-bold">${totalSpent.toFixed(2)}</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -269,7 +268,7 @@ export default function PaymentHistory() {
             <p className="text-2xl font-bold">{totalCredits.toLocaleString()}</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -321,7 +320,7 @@ export default function PaymentHistory() {
               {payments.map((payment: Payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>
-                    {new Date(payment.createdAt).toLocaleDateString()} 
+                    {new Date(payment.createdAt).toLocaleDateString()}
                     <div className="text-xs text-muted-foreground">
                       {new Date(payment.createdAt).toLocaleTimeString()}
                     </div>

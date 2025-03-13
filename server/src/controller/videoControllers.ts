@@ -21,7 +21,7 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     console.log("after video");
 
     const YOUTUBE_API_KEY = getNextApiKey();
-    const YOUTUBE_COMMENTS_URL = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=100&key=${YOUTUBE_API_KEY}`;
+    const YOUTUBE_COMMENTS_URL = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=400&key=${YOUTUBE_API_KEY}`;
 
     const response = await axios.get(YOUTUBE_COMMENTS_URL);
     console.log("after video");
