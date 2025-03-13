@@ -17,7 +17,8 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
-import { Star, UserPlus, Users, UsersIcon } from "lucide-react";
+
+import { UserPlus, Users, UsersIcon } from "lucide-react";
 import { Pie } from "react-chartjs-2";
 
 // Register ChartJS components
@@ -48,7 +49,7 @@ const StatCard = ({
   <Card>
     <CardHeader className="flex flex-row items-center justify-between pb-2">
       <CardTitle className="text-sm font-medium text-gray-600">
-        {title}
+        {title} 
       </CardTitle>
       <Icon className="h-4 w-4 text-gray-500" />
     </CardHeader>

@@ -3,8 +3,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserGrowthData } from "@/types/adminTypes";
 import { Bar } from "react-chartjs-2";
 
-
-
 const GrowthChart = ({ data, loading }: { 
   data: UserGrowthData | null;
   loading: boolean;
