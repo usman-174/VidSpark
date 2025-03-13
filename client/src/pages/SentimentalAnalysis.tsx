@@ -81,7 +81,7 @@ const SentimentAnalysis = () => {
 
     try {
       const response = await axiosInstance.get(
-        `/videos/sentimental-analysis?videoId=${id}`
+        `/videos/sentimental-analysis?videoId=${String(id).trim()}`
       );
       setSentimentData(response.data);
 

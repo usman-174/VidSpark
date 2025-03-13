@@ -20,7 +20,7 @@ import * as z from "zod";
 // Update schema to include gender
 const registerSchema = z
   .object({
-    email: z.string().email("Invalid email address"),
+    email: z.string().trim().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z
       .string()
@@ -28,7 +28,7 @@ const registerSchema = z
     gender: z.enum(["male", "female"], {
       required_error: "Gender is required",
     }),
-    name: z.string().min(3, "Name must be at least 3 characters"),
+    name: z.string().trim().min(3, "Name must be at least 3 characters"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

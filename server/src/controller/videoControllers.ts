@@ -8,7 +8,7 @@ import { TfIdf } from "natural";
 import vader from "vader-sentiment";
 import { deductCredits } from "../services/userService";
 
-export const analyzeVideoSentiment = async (req: Request, res: Response) => {
+export const analyzeVideoSentiment = async (req: Request, res: Response) :Promise<any> => {
   try {
     await loadKeysFromDB();
     const { videoId } = req.query;
