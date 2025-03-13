@@ -9,33 +9,18 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Loader2,
-  Upload,
   UserPlus,
-  AlertCircle,
-  Check,
-  X,
   Clock,
-  Filter,
-  SortAsc,
-  SortDesc,
-  Mail,
-  Calendar,
   Search,
   RefreshCw,
+  Check,
+  X,
+  Mail,
+  SortAsc,
+  SortDesc,
 } from "lucide-react";
 import {
   Select,
@@ -46,16 +31,10 @@ import {
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
 import axiosInstance from "@/api/axiosInstance";
-import useAuthStore from "@/store/authStore";
+import useAuthStore, { User } from "@/store/authStore";
+import { ProfileCard } from "@/components/profle/ProfileCard";
 
 // Type definitions
-interface User {
-  id: string;
-  email: string;
-  profileImage?: string | null;
-  role: string;
-}
-
 interface Invitation {
   id: string;
   inviterId: string;
@@ -66,15 +45,6 @@ interface Invitation {
   createdAt: string;
 }
 
-interface FormState {
-  email: string;
-  isLoading: boolean;
-  file: File | null;
-  isUploading: boolean;
-  profileImage: string | null;
-  isDialogOpen: boolean;
-}
-
 interface SortOption {
   value: keyof Invitation;
   label: string;
@@ -82,16 +52,9 @@ interface SortOption {
 
 const Profile = () => {
   const { user } = useAuthStore() as { user: User | null };
-  const [formState, setFormState] = useState<FormState>({
-    email: "",
-    isLoading: false,
-    file: null,
-    isUploading: false,
-    profileImage: user?.profileImage || null,
-    isDialogOpen: false,
-  });
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [invitedUsers, setInvitedUsers] = useState<Invitation[]>([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter and sort states
@@ -115,10 +78,12 @@ const Profile = () => {
 
   const fetchInvitedUsers = async () => {
     if (!user?.id) return;
-    
+
     setIsRefreshing(true);
     try {
-      const response = await axiosInstance.get<Invitation[]>("/invitations/get-invitations");
+      const response = await axiosInstance.get<Invitation[]>(
+        "/invitations/get-invitations"
+      );
       setInvitedUsers(response.data);
     } catch (error) {
       toast.error("Failed to fetch invited users");
@@ -128,90 +93,43 @@ const Profile = () => {
   };
 
   const handleInvitation = async () => {
-    if (!formState.email.trim()) {
+    if (!email.trim()) {
       toast.error("Please enter a valid email address");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formState.email.trim())) {
+    if (!emailRegex.test(email.trim())) {
       toast.error("Please enter a valid email format");
       return;
     }
 
-    setFormState((prev) => ({ ...prev, isLoading: true }));
+    setIsLoading(true);
 
     try {
       await axiosInstance.post("/invitations/send-invitation", {
         inviterId: user?.id,
-        inviteeEmail: formState.email,
+        inviteeEmail: email,
       });
 
       toast.success("Invitation sent successfully!");
-      setFormState((prev) => ({ ...prev, email: "" }));
+      setEmail("");
       fetchInvitedUsers();
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to send invitation");
     } finally {
-      setFormState((prev) => ({ ...prev, isLoading: false }));
-    }
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("File size should be less than 5MB");
-        return;
-      }
-      setFormState((prev) => ({ ...prev, file, isDialogOpen: true }));
-    }
-  };
-
-  const handleImageUpload = async () => {
-    if (!formState.file) return;
-
-    setFormState((prev) => ({ ...prev, isUploading: true }));
-    setUploadProgress(0);
-
-    const formData = new FormData();
-    formData.append("file", formState.file);
-
-    try {
-      const response = await axiosInstance.post("/uploads/profile-image", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          const progress =
-            (progressEvent.loaded / (progressEvent.total || 0)) * 100;
-          setUploadProgress(Math.round(progress));
-        },
-      });
-
-      setFormState((prev) => ({
-        ...prev,
-        profileImage: response.data.imageUrl,
-        file: null,
-        isDialogOpen: false,
-        isUploading: false,
-      }));
-
-      toast.success("Profile picture updated successfully!");
-    } catch (error) {
-      toast.error("Failed to upload image");
-    } finally {
-      setFormState((prev) => ({ ...prev, isUploading: false }));
-      setUploadProgress(0);
+      setIsLoading(false);
     }
   };
 
   // Format date for display
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -224,17 +142,17 @@ const Profile = () => {
   const getTimeRemaining = (expiryDate: string): string => {
     const now = new Date();
     const expiry = new Date(expiryDate);
-    
+
     if (now > expiry) return "";
-    
+
     const diffMs = expiry.getTime() - now.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 60) {
-      return `${diffMins} minute${diffMins !== 1 ? 's' : ''} remaining`;
+      return `${diffMins} minute${diffMins !== 1 ? "s" : ""} remaining`;
     } else {
       const hours = Math.floor(diffMins / 60);
-      return `${hours} hour${hours !== 1 ? 's' : ''} remaining`;
+      return `${hours} hour${hours !== 1 ? "s" : ""} remaining`;
     }
   };
 
@@ -250,14 +168,22 @@ const Profile = () => {
     }
 
     // Sort by selected field
-    list.sort((a:any, b:any) => {
+    list.sort((a: any, b: any) => {
       // Special handling for boolean isUsed field
       if (sortField === "isUsed") {
-        return sortOrder === "asc" 
-          ? (a.isUsed === b.isUsed ? 0 : a.isUsed ? 1 : -1)
-          : (a.isUsed === b.isUsed ? 0 : a.isUsed ? -1 : 1);
+        return sortOrder === "asc"
+          ? a.isUsed === b.isUsed
+            ? 0
+            : a.isUsed
+            ? 1
+            : -1
+          : a.isUsed === b.isUsed
+          ? 0
+          : a.isUsed
+          ? -1
+          : 1;
       }
-      
+
       let compareA = a[sortField];
       let compareB = b[sortField];
 
@@ -266,7 +192,7 @@ const Profile = () => {
         compareA = new Date(compareA).getTime();
         compareB = new Date(compareB).getTime();
       }
-      
+
       if (compareA < compareB) return sortOrder === "asc" ? -1 : 1;
       if (compareA > compareB) return sortOrder === "asc" ? 1 : -1;
       return 0;
@@ -276,12 +202,12 @@ const Profile = () => {
   }, [invitedUsers, filterText, sortField, sortOrder]);
 
   // Helper component for invitation status badge
-  const InvitationStatus = ({ 
-    isUsed, 
-    expiresAt 
-  }: { 
-    isUsed: boolean; 
-    expiresAt: string 
+  const InvitationStatus = ({
+    isUsed,
+    expiresAt,
+  }: {
+    isUsed: boolean;
+    expiresAt: string;
   }) => {
     if (isUsed) {
       return (
@@ -291,7 +217,7 @@ const Profile = () => {
         </Badge>
       );
     }
-    
+
     if (isExpired(expiresAt)) {
       return (
         <Badge variant="destructive" className="ml-2">
@@ -300,7 +226,7 @@ const Profile = () => {
         </Badge>
       );
     }
-    
+
     return (
       <Badge variant="secondary" className="ml-2">
         <Clock className="w-3 h-3 mr-1" />
@@ -311,42 +237,8 @@ const Profile = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
-      {/* Profile Header */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <div className="flex items-center space-x-4">
-            <div className="relative group">
-              <Avatar className="h-20 w-20 cursor-pointer">
-                <AvatarImage
-                  src={formState.profileImage || "/default-avatar.png"}
-                />
-                <AvatarFallback className="text-lg">
-                  {user?.email?.[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                <label className="cursor-pointer p-2">
-                  <Upload className="h-6 w-6 text-white" />
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                  />
-                </label>
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-2xl">{user?.email}</CardTitle>
-              <CardDescription>
-                <Badge variant="outline" className="mt-1">
-                  {user?.role}
-                </Badge>
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      {/* Profile Card - Now with self-contained image upload functionality */}
+      <ProfileCard user={user!} />
 
       <div className="grid md:grid-cols-2 gap-6 items-baseline">
         {/* Invite Friend Section */}
@@ -365,20 +257,15 @@ const Profile = () => {
               <Input
                 type="email"
                 placeholder="friend@example.com"
-                value={formState.email}
-                onChange={(e) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    email: e.target.value,
-                  }))
-                }
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
               <Button
                 className="w-full"
                 onClick={handleInvitation}
-                disabled={formState.isLoading || !formState.email}
+                disabled={isLoading || !email}
               >
-                {formState.isLoading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Sending...
@@ -397,18 +284,18 @@ const Profile = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Invited Users</CardTitle>
-                <CardDescription>
-                  Track your sent invitations
-                </CardDescription>
+                <CardDescription>Track your sent invitations</CardDescription>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={fetchInvitedUsers}
                 disabled={isRefreshing}
                 title="Refresh invitations"
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
               </Button>
             </div>
           </CardHeader>
@@ -425,11 +312,13 @@ const Profile = () => {
                   className="pl-8"
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <Select
                   value={sortField}
-                  onValueChange={(value) => setSortField(value as keyof Invitation)}
+                  onValueChange={(value) =>
+                    setSortField(value as keyof Invitation)
+                  }
                 >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Sort by" />
@@ -442,17 +331,22 @@ const Profile = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                
+
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                  title={sortOrder === "asc" ? "Sort descending" : "Sort ascending"}
-                >
-                  {sortOrder === "asc" ? 
-                    <SortAsc className="h-4 w-4" /> : 
-                    <SortDesc className="h-4 w-4" />
+                  onClick={() =>
+                    setSortOrder(sortOrder === "asc" ? "desc" : "asc")
                   }
+                  title={
+                    sortOrder === "asc" ? "Sort descending" : "Sort ascending"
+                  }
+                >
+                  {sortOrder === "asc" ? (
+                    <SortAsc className="h-4 w-4" />
+                  ) : (
+                    <SortDesc className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -461,20 +355,25 @@ const Profile = () => {
             {invitedUsers.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-gray-50 p-2 rounded-lg text-center">
-                  <div className="text-lg font-semibold">{invitedUsers.length}</div>
+                  <div className="text-lg font-semibold">
+                    {invitedUsers.length}
+                  </div>
                   <div className="text-xs text-gray-500">Total</div>
                 </div>
                 <div className="bg-gray-50 p-2 rounded-lg text-center">
                   <div className="text-lg font-semibold">
-                    {invitedUsers.filter(invite => invite.isUsed).length}
+                    {invitedUsers.filter((invite) => invite.isUsed).length}
                   </div>
                   <div className="text-xs text-gray-500">Accepted</div>
                 </div>
                 <div className="bg-gray-50 p-2 rounded-lg text-center">
                   <div className="text-lg font-semibold">
-                    {invitedUsers.filter(invite => 
-                      !invite.isUsed && !isExpired(invite.expiresAt)
-                    ).length}
+                    {
+                      invitedUsers.filter(
+                        (invite) =>
+                          !invite.isUsed && !isExpired(invite.expiresAt)
+                      ).length
+                    }
                   </div>
                   <div className="text-xs text-gray-500">Pending</div>
                 </div>
@@ -484,7 +383,9 @@ const Profile = () => {
             {/* Invitation list */}
             {processedInvitedUsers.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                {filterText ? "No matching invitations found" : "No invitations sent yet"}
+                {filterText
+                  ? "No matching invitations found"
+                  : "No invitations sent yet"}
               </div>
             ) : (
               <div className="space-y-3">
@@ -496,15 +397,16 @@ const Profile = () => {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center">
                         <Mail className="w-4 h-4 mr-2 text-gray-500" />
-                        <span className="font-medium">{invite.inviteeEmail}</span>
+                        <span className="font-medium">
+                          {invite.inviteeEmail}
+                        </span>
                       </div>
-                      <InvitationStatus 
-                        isUsed={invite.isUsed} 
-                        expiresAt={invite.expiresAt} 
+                      <InvitationStatus
+                        isUsed={invite.isUsed}
+                        expiresAt={invite.expiresAt}
                       />
                     </div>
                     <div className="flex items-center text-xs text-gray-500 mt-1">
-                      
                       <span>Sent: {formatDate(invite.createdAt)}</span>
                       {!invite.isUsed && (
                         <span className="ml-auto font-medium text-xs">
@@ -520,52 +422,15 @@ const Profile = () => {
           <CardFooter className="flex justify-between pt-0">
             <div className="text-xs text-gray-500">
               {processedInvitedUsers.length > 0 && (
-                <>Showing {processedInvitedUsers.length} of {invitedUsers.length} invitations</>
+                <>
+                  Showing {processedInvitedUsers.length} of{" "}
+                  {invitedUsers.length} invitations
+                </>
               )}
             </div>
           </CardFooter>
         </Card>
       </div>
-
-      {/* Image Upload Dialog */}
-      <Dialog
-        open={formState.isDialogOpen}
-        onOpenChange={(open) =>
-          setFormState((prev) => ({ ...prev, isDialogOpen: open }))
-        }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Profile Picture</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            {formState.isUploading && (
-              <div className="space-y-2">
-                <Progress value={uploadProgress} />
-                <p className="text-sm text-center text-gray-500">
-                  Uploading... {uploadProgress}%
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setFormState((prev) => ({ ...prev, isDialogOpen: false }))
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleImageUpload}
-              disabled={formState.isUploading}
-            >
-              {formState.isUploading ? "Uploading..." : "Upload"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

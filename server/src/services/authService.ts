@@ -234,7 +234,9 @@ export const getUser = async (userId: string) => {
       createdAt: true,
       parent: true,
       profileImage: true,
-
+      name: true,
+      gender: true,
+      
       creditBalance: true,
       // if you also want to see each Credit record, uncomment below
       // credits: {

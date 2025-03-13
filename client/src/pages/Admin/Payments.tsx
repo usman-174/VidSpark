@@ -223,35 +223,35 @@ export default function AdminPayments() {
     });
   };
 
-  // Calculate statistics
-  const calculateStatistics = () => {
-    if (!data?.data)
-      return {
-        totalRevenue: 0,
-        successCount: 0,
-        failedCount: 0,
-        pendingCount: 0,
-      };
+  // // Calculate statistics
+  // const calculateStatistics = () => {
+  //   if (!data?.data)
+  //     return {
+  //       totalRevenue: 0,
+  //       successCount: 0,
+  //       failedCount: 0,
+  //       pendingCount: 0,
+  //     };
 
-    const payments = data.data;
-    const totalRevenue = payments
-      .filter((payment) => payment.status === "SUCCEEDED")
-      .reduce((sum, payment) => sum + payment.amount, 0);
+  //   const payments = data.data;
+  //   const totalRevenue = payments
+  //     .filter((payment) => payment.status === "SUCCEEDED")
+  //     .reduce((sum, payment) => sum + payment.amount, 0);
 
-    const successCount = payments.filter(
-      (payment) => payment.status === "SUCCEEDED"
-    ).length;
-    const failedCount = payments.filter(
-      (payment) => payment.status === "FAILED"
-    ).length;
-    const pendingCount = payments.filter(
-      (payment) => payment.status === "PENDING"
-    ).length;
+  //   const successCount = payments.filter(
+  //     (payment) => payment.status === "SUCCEEDED"
+  //   ).length;
+  //   const failedCount = payments.filter(
+  //     (payment) => payment.status === "FAILED"
+  //   ).length;
+  //   const pendingCount = payments.filter(
+  //     (payment) => payment.status === "PENDING"
+  //   ).length;
 
-    return { totalRevenue, successCount, failedCount, pendingCount };
-  };
+  //   return { totalRevenue, successCount, failedCount, pendingCount };
+  // };
 
-  const stats = calculateStatistics();
+  // const stats = calculateStatistics();
 
   // Export button content
   const getExportButtonContent = () => {
@@ -317,6 +317,16 @@ export default function AdminPayments() {
 
   // Safely extract payments and metadata from the response
   const payments = data?.data || [];
+  const stats = data?.statistics || {
+    totalRevenue: 0,
+    successCount: 0,
+    failedCount: 0,
+    pendingCount: 0,
+    totalCount: 0,
+    successRate: 0,
+    failureRate: 0,
+    pendingRate: 0,
+  };
   const metadata = data?.metadata || {
     totalItems: 0,
     currentPage: 1,
@@ -544,7 +554,7 @@ export default function AdminPayments() {
           </div>
 
           {/* Search Filter - Only searches when button is clicked */}
-          <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+          {/* <div className="space-y-2 sm:col-span-2 lg:col-span-1">
             <label className="text-xs text-muted-foreground font-medium">
               Search
             </label>
@@ -573,7 +583,7 @@ export default function AdminPayments() {
                 </Tooltip>
               </TooltipProvider>
             </form>
-          </div>
+          </div> */}
         </div>
       </div>
 

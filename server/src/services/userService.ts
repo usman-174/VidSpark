@@ -24,6 +24,8 @@ export const getUsers = async () => {
       role: true,
       profileImage: true,
       createdAt: true,
+      name: true,
+      creditBalance: true,
       _count: {
         select: { credits: true },
       },

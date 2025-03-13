@@ -134,6 +134,8 @@ export default function UsersPage() {
           <TableRow>
             <TableHead className="w-12"></TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Name</TableHead>
+
             <TableHead>Role</TableHead>
             <TableHead>Credits</TableHead>
             <TableHead>Joined</TableHead>
@@ -155,6 +157,8 @@ export default function UsersPage() {
                 )}
               </TableCell>
               <TableCell>{user.email}</TableCell>
+              <TableCell>{user.name  ||" NA "}</TableCell>
+
               <TableCell>{user.role}</TableCell>
               <TableCell>{user.totalCredits}</TableCell>
               <TableCell>

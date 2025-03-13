@@ -9,7 +9,7 @@ import { User } from "@/store/authStore";
 import { FC } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-
+import { Role } from "@/store/authStore";
 interface NavbarProps {
   user: User | null;
   logout: () => void;
@@ -50,9 +50,11 @@ export const Navbar: FC<NavbarProps> = ({ user, logout }) => {
               <DropdownMenuItem disabled className="text-sm text-gray-600">
                 {user?.email}
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/profile">Profile</Link>
-              </DropdownMenuItem>
+              {user?.role === "USER" ? (
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">Profile</Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onClick={logout} className="text-red-600">
                 Logout
               </DropdownMenuItem>

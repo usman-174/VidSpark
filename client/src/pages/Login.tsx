@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import axios from "@/api/axiosInstance";
 import useAuthStore from "@/store/authStore";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import loginImage from "@/assets/login-image.png"; // Ensure this image exists in your assets
 
@@ -29,11 +29,13 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email");
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: email||"",
       password: "",
     },
   });

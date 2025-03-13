@@ -22,9 +22,13 @@ const registerSchema = z
   .object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-    gender: z.enum(["male", "female"], { required_error: "Gender is required" }),
-    name : z.string().min(3, "Name must be at least 3 characters"),
+    confirmPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters"),
+    gender: z.enum(["male", "female"], {
+      required_error: "Gender is required",
+    }),
+    name: z.string().min(3, "Name must be at least 3 characters"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -40,7 +44,7 @@ const Register: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
-
+  const [error, setError] = useState<string | null>(null);
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -60,19 +64,22 @@ const Register: React.FC = () => {
         password: values.password,
         invitationId: invitationId || undefined,
         gender: values.gender,
-        name : values.name,
+        name: values.name,
       });
       toast.success("Registration successful! Please login.");
-      navigate("/login");
+      navigate("/login?email=" + values.email);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Something went wrong";
-      toast.error(errorMessage);
-      if (error.response?.status === 409) {
+      const errorMessage =
+        error.response?.data?.error || ("Something went wrong" as string);
+      if (errorMessage.includes("already exists")) {
         form.setError("email", {
           type: "manual",
-          message: "Email already exists",
+          message: "Email already in use",
         });
+        return;
       }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -83,7 +90,9 @@ const Register: React.FC = () => {
       if (invitationId && !hasFetchedInvitation.current) {
         hasFetchedInvitation.current = true;
         try {
-          const response = await axios.get(`/invitations/get-invitations/${invitationId}`);
+          const response = await axios.get(
+            `/invitations/get-invitations/${invitationId}`
+          );
           if (response && response.data) {
             const res = response.data;
             if (res.isUsed) {
@@ -116,17 +125,21 @@ const Register: React.FC = () => {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12">
         <div className="text-center text-white">
           <h1 className="text-5xl font-bold mb-4">Create an Account</h1>
-          <p className="text-lg">Please fill in the details below to register.</p>
+          <p className="text-lg">
+            Please fill in the details below to register.
+          </p>
         </div>
       </div>
 
       {/* Right Side - Register Form */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Register</h2>
+          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
+            Register
+          </h2>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
+              <FormField
                 name="name"
                 control={form.control}
                 disabled={!!invitationId && !!form.getValues("name")}

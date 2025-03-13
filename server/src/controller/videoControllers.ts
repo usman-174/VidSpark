@@ -13,37 +13,98 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     await loadKeysFromDB();
     const { videoId } = req.query;
     const { user } = res.locals;
-    // console.log("params", req.query);
 
     if (!videoId) {
-      res.status(400).json({ error: "Missing video ID." });
+      return res.status(400).json({ error: "Missing video ID." });
     }
-    console.log("after video");
 
+    // Get video details to include title in response
     const YOUTUBE_API_KEY = getNextApiKey();
+    const YOUTUBE_VIDEO_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`;
+    const videoResponse = await axios.get(YOUTUBE_VIDEO_URL);
+    const videoTitle = videoResponse.data.items[0]?.snippet?.title || "";
+
+    // Get comments
     const YOUTUBE_COMMENTS_URL = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=400&key=${YOUTUBE_API_KEY}`;
-
     const response = await axios.get(YOUTUBE_COMMENTS_URL);
-    console.log("after video");
 
-    const comments = response.data.items.map(
+    // Extract comments but filter out those containing links
+    const allComments = response.data.items.map(
       (item: any) => item.snippet.topLevelComment.snippet.textDisplay
     );
 
+    // Regular expression to detect URLs in text
+    const urlRegex =
+      /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
+
+    // Filter out comments with links
+    const comments = allComments.filter((comment) => !urlRegex.test(comment));
+
+    console.log(
+      `Filtered ${
+        allComments.length - comments.length
+      } comments with links out of ${allComments.length} total comments`
+    );
+
     if (!comments.length) {
-      res.status(404).json({ error: "No comments found." });
+      return res
+        .status(404)
+        .json({ error: "No valid comments found after filtering." });
     }
 
-    const sentimentScores = comments.map((comment) => {
+    // Configuration for neutral bias reduction
+    const NEUTRAL_THRESHOLD = 0.05; // Threshold to determine what's "barely" neutral
+    const NEUTRAL_REDISTRIBUTION_FACTOR = 0.7; // How much to redistribute (0-1)
+
+    // Process sentiment for each comment
+    const sentimentScores = comments.map((comment: string) => {
       const sentimentResult =
         vader.SentimentIntensityAnalyzer.polarity_scores(comment);
+
+      // Determine sentiment category with the bias adjustment
+      let sentiment: "positive" | "negative" | "neutral";
+
+      if (sentimentResult.neu > 0.5) {
+        // If it's primarily neutral
+        // Calculate difference between positive and negative
+        const posnegDiff = Math.abs(sentimentResult.pos - sentimentResult.neg);
+
+        if (posnegDiff >= NEUTRAL_THRESHOLD) {
+          // If there's a meaningful difference, lean toward that direction
+          sentiment =
+            sentimentResult.pos > sentimentResult.neg ? "positive" : "negative";
+
+          // Adjust scores - reduce neutrality and boost the dominant sentiment
+          const adjustment =
+            sentimentResult.neu * NEUTRAL_REDISTRIBUTION_FACTOR;
+          sentimentResult.neu -= adjustment;
+
+          if (sentiment === "positive") {
+            sentimentResult.pos += adjustment;
+          } else {
+            sentimentResult.neg += adjustment;
+          }
+        } else {
+          sentiment = "neutral";
+        }
+      } else {
+        // For comments that aren't primarily neutral, use standard classification
+        sentiment =
+          sentimentResult.compound >= 0.05
+            ? "positive"
+            : sentimentResult.compound <= -0.05
+            ? "negative"
+            : "neutral";
+      }
 
       return {
         comment,
         ...sentimentResult,
+        sentiment,
       };
     });
 
+    // Calculate overall sentiment with the adjusted scores
     const overallSentiment = sentimentScores.reduce(
       (acc, curr) => {
         acc.positive += curr.pos;
@@ -58,13 +119,38 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) => {
     overallSentiment.positive /= total;
     overallSentiment.neutral /= total;
     overallSentiment.negative /= total;
+
+    // Get some representative comment examples for each sentiment
+
+    // Add stats about filtered comments
+    const stats = {
+      totalCommentsReceived: allComments.length,
+      commentsWithLinks: allComments.length - comments.length,
+      commentsAnalyzed: comments.length,
+    };
+
     await deductCredits(user.userId, 1);
-    res.status(200).json({ overallSentiment, sentimentScores });
+
+    res.status(200).json({
+      overallSentiment,
+      sentimentScores,
+      videoTitle,
+
+      stats,
+    });
   } catch (error) {
-    console.error("Error analyzing sentiment:", error.response.data);
-    res.status(500).json({ error: "Failed to analyze sentiment." });
+    console.error(
+      "Error analyzing sentiment:",
+      error.response?.data || error.message
+    );
+    res.status(500).json({
+      error: "Failed to analyze sentiment.",
+      message: error.response?.data?.error?.message || error.message,
+    });
   }
 };
+// Helper function to get representative comment examples for each sentiment
+
 // Cache object and duration (in milliseconds)
 let trendingVideosCache: {
   videos: any[];
@@ -82,7 +168,10 @@ function isEnglish(text: string): boolean {
   return asciiRatio >= 0.8;
 }
 
-export const getTrendingVideos = async (req: Request, res: Response) :Promise<any>=> {
+export const getTrendingVideos = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     // Check if cache exists and is still valid.
     if (

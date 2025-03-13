@@ -14,12 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Loader2,
-  Download,
-  Check,
-  AlertCircle
-} from "lucide-react";
+import { Loader2, Download, Check, AlertCircle } from "lucide-react";
 import { paymentAPI, Payment } from "@/api/paymentsApi";
 import {
   Tooltip,
@@ -27,22 +22,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Alert,
-  AlertDescription,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
+const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100];
 
 export default function PaymentHistory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1", 10);
-  const limit = parseInt(searchParams.get("limit") || "10", 10);
-  const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "success" | "error">("idle");
+  const limit = parseInt(searchParams.get("limit") || "20", 20);
+  const [exportStatus, setExportStatus] = useState<
+    "idle" | "exporting" | "success" | "error"
+  >("idle");
   const [showExportAlert, setShowExportAlert] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['my-payments', page, limit],
+    queryKey: ["my-payments", page, limit],
     queryFn: () => paymentAPI.getMyPayments({ page, limit }),
   });
 
@@ -76,7 +70,7 @@ export default function PaymentHistory() {
         "Credits",
         "Amount ($)",
         "Transaction ID",
-        "Status"
+        "Status",
       ];
 
       const csvRows = allPayments.map((payment: Payment) => {
@@ -88,14 +82,14 @@ export default function PaymentHistory() {
           payment.creditPackage?.credits || "N/A",
           payment.amount.toFixed(2),
           payment.stripePaymentId,
-          payment.status
+          payment.status,
         ];
       });
 
       // Convert to CSV string
       const csvContent = [
         headers.join(","),
-        ...csvRows.map(row => row.join(","))
+        ...csvRows.map((row) => row.join(",")),
       ].join("\n");
 
       // Create and download the file
@@ -103,7 +97,10 @@ export default function PaymentHistory() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `payment-history-${new Date().toISOString().split("T")[0]}.csv`);
+      link.setAttribute(
+        "download",
+        `payment-history-${new Date().toISOString().split("T")[0]}.csv`
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -116,7 +113,6 @@ export default function PaymentHistory() {
         setExportStatus("idle");
         setTimeout(() => setShowExportAlert(false), 3000);
       }, 2000);
-
     } catch (err) {
       console.error("Export failed:", err);
       setExportStatus("error");
@@ -141,7 +137,9 @@ export default function PaymentHistory() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">Failed to load payment history. Please try again later.</p>
+        <p className="text-red-500">
+          Failed to load payment history. Please try again later.
+        </p>
       </div>
     );
   }
@@ -163,8 +161,11 @@ export default function PaymentHistory() {
   // Get total credits purchased
   const totalCredits = payments
     .filter((payment: Payment) => payment.status === "SUCCEEDED")
-    .reduce((sum: number, payment: Payment) =>
-      sum + (payment.creditPackage?.credits || 0), 0);
+    .reduce(
+      (sum: number, payment: Payment) =>
+        sum + (payment.creditPackage?.credits || 0),
+      0
+    );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -224,7 +225,11 @@ export default function PaymentHistory() {
                   onClick={exportToCSV}
                   disabled={exportStatus === "exporting"}
                   variant={exportStatus === "success" ? "outline" : "default"}
-                  className={exportStatus === "success" ? "bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800" : ""}
+                  className={
+                    exportStatus === "success"
+                      ? "bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
+                      : ""
+                  }
                 >
                   {getExportButtonContent()}
                 </Button>
@@ -245,7 +250,6 @@ export default function PaymentHistory() {
         </Alert>
       )}
 
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -265,7 +269,9 @@ export default function PaymentHistory() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalCredits.toLocaleString()}</p>
+            <p className="text-2xl font-bold">
+              {totalCredits.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
 
@@ -285,8 +291,8 @@ export default function PaymentHistory() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {metadata.currentPage} of {metadata.totalPages} pages (Total{" "}
-              {metadata.totalItems} transactions)
+              Showing {metadata.currentPage} of {metadata.totalPages} pages
+              (Total {metadata.totalItems} transactions)
             </p>
 
             <div className="flex items-center space-x-2">

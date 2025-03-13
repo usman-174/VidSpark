@@ -13,22 +13,31 @@ enum Gender {
 }
 
 model User {
-  id              String       @id @default(uuid())
-  name            String?
-  email           String       @unique
-  password        String
-  profileImage    String?
-  gender          Gender?      @default(MALE)  // Updated to use the Gender enum 
-  createdAt       DateTime     @default(now())
-  resetToken      String?
-  role            Role         @default(USER)
-  parentId        String?
-  creditBalance   Int          @default(0) // <-- current available credits
-  credits         Credit[]
-  sentInvitations Invitation[] @relation("UserInvitations")
-  parent          User?        @relation("ParentOf", fields: [parentId], references: [id])
-  children        User[]       @relation("ParentOf")
-  payments        Payment[]
+  id                  String                @id @default(uuid())
+  name                String?
+  email               String                @unique
+  password            String
+  profileImage        String?
+  gender              Gender?               @default(MALE) // Updated to use the Gender enum 
+  createdAt           DateTime              @default(now())
+  resetToken          String?
+  role                Role                  @default(USER)
+  parentId            String?
+  creditBalance       Int                   @default(0) // <-- current available credits
+  credits             Credit[]
+  sentInvitations     Invitation[]          @relation("UserInvitations")
+  parent              User?                 @relation("ParentOf", fields: [parentId], references: [id])
+  children            User[]                @relation("ParentOf")
+  payments            Payment[]
+  SentimentalAnalysis SentimentalAnalysis[]
+}
+
+model Credit {
+  id        String   @id @default(uuid())
+  credits   Int
+  createdAt DateTime @default(now())
+  userId    String?
+  User      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Invitation {
@@ -44,19 +53,24 @@ model Invitation {
   @@index([inviterId])
 }
 
-model Credit {
-  id        String   @id @default(uuid())
-  credits   Int
-  createdAt DateTime @default(now())
-  userId    String?
-  User      User?    @relation(fields: [userId], references: [id])
-}
-
 model Policy {
   id        String     @id @default(uuid())
+  name      String?
   credits   Int
   createdAt DateTime   @default(now())
   type      PolicyType
+}
+
+model SentimentalAnalysis {
+  id        String   @id @default(uuid())
+  userId    String
+  videoId   String
+  positive  Float
+  negative  Float
+  neutral   Float
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model CreditPackage {

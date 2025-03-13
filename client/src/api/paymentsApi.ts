@@ -34,6 +34,22 @@ export interface Payment {
 export interface PaginationParams {
   page?: number;
   limit?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  search?: string;
+}
+
+export interface PaymentStatistics {
+  totalRevenue: number;
+  totalAmount: number;
+  successCount: number;
+  failedCount: number;
+  pendingCount: number;
+  totalCount: number;
+  successRate: number;
+  failureRate: number;
+  pendingRate: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -44,6 +60,7 @@ export interface PaginatedResponse<T> {
     totalItems: number;
     itemsPerPage: number;
   };
+  statistics?: PaymentStatistics;
 }
 
 // API functions for payments
@@ -63,8 +80,18 @@ export const paymentAPI = {
     params?: PaginationParams
   ): Promise<PaginatedResponse<Payment>> =>
     axios.get("/payments/my", { params }).then((res) => res.data),
+    
+  // Get all payments (admin only) with pagination and filters
   allPayments: (
     params?: PaginationParams
   ): Promise<PaginatedResponse<Payment>> =>
     axios.get("/payments/all", { params }).then((res) => res.data),
+    
+  // Get payment statistics separately if needed
+  getPaymentStatistics: (
+    params?: PaginationParams
+  ): Promise<PaymentStatistics> =>
+    axios.get("/payments/statistics", { params }).then((res) => res.data),
 };
+
+export default paymentAPI;

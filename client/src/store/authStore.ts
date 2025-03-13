@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import axios from "@/api/axiosInstance";
 
-type Role = "USER" | "ADMIN";
+export type Role = "USER" | "ADMIN";
 
 export interface User {
   id: string;
