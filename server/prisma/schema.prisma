@@ -52,6 +52,7 @@ model Credit {
   User      User?    @relation(fields: [userId], references: [id])
 }
 
+
 model Policy {
   id        String     @id @default(uuid())
   credits   Int
@@ -129,6 +130,9 @@ enum PolicyType {
   PARENT_RELATIONSHIP
   SIMPLE_RELATIONSHIP
   FIRST_SIGNUP
+  BASIC
+  PREMIUM
+  ADVANCED
 }
 
 enum Role {
