@@ -1,60 +1,70 @@
-// src/pages/admin/AdminPolicyPage.tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { policyAPI } from "@/api/policyApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { PolicyType } from "@/types/policyTypes";
-import { policyAPI } from "@/api/policyApi";
+import { toast } from "react-hot-toast"; // ✅ using 'sonner' for better toasts (lightweight)
+import { motion, AnimatePresence } from "framer-motion"; // ✅ for smooth animations
 
-const PolicyCard = ({ id, credits, type, onUpdate }: {
+const PolicyCard = ({
+  id,
+  credits,
+  type,
+  onUpdate,
+  isUpdating,
+}: {
   id: string;
   credits: number;
   type: PolicyType;
   onUpdate: (id: string, credits: number) => void;
+  isUpdating: boolean;
 }) => {
   const [newCredits, setNewCredits] = useState(credits.toString());
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-md">{type} Policy</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={newCredits}
-            onChange={(e) => setNewCredits(e.target.value)}
-          />
-          <Button onClick={() => onUpdate(id, Number(newCredits))}>Update</Button>
-        </div>
-        <div className="text-sm text-gray-500">Policy ID: {id}</div>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="text-lg">{type} Policy</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={newCredits}
+              onChange={(e) => setNewCredits(e.target.value)}
+              min={0}
+              placeholder="Enter new credits"
+              className="w-full"
+            />
+            <Button
+              onClick={() => onUpdate(id, Number(newCredits))}
+              disabled={isUpdating || newCredits === ""}
+              size="sm"
+            >
+              {isUpdating ? "Updating..." : "Update"}
+            </Button>
+          </div>
+          <div className="text-xs text-muted-foreground">ID: {id}</div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 
 export const AdminPolicyPage = () => {
   const queryClient = useQueryClient();
-  const [credits, setCredits] = useState("");
-  const [type, setType] = useState<PolicyType | "">("");
 
   const { data: policies, isLoading } = useQuery({
     queryKey: ["admin", "policies"],
     queryFn: policyAPI.getAll,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: ({ credits, type }: { credits: number; type: PolicyType }) =>
-      policyAPI.create(credits, type),
-    onSuccess: () => {
-      queryClient.invalidateQueries(["admin", "policies"] as any);
-      setCredits("");
-      setType("");
-    },
   });
 
   const updateMutation = useMutation({
@@ -62,61 +72,47 @@ export const AdminPolicyPage = () => {
       policyAPI.updateCredits(id, credits),
     onSuccess: () => {
       queryClient.invalidateQueries(["admin", "policies"]as any);
+      toast.success("Policy updated successfully!");
+    },
+    onError: () => {
+      toast.error("Failed to update policy. Please try again.");
     },
   });
 
-  const handleCreate = () => {
-    if (!credits || !type) return;
-    createMutation.mutate({ credits: Number(credits), type: type as PolicyType });
-  };
-
   const handleUpdate = (id: string, newCredits: number) => {
+    if (isNaN(newCredits) || newCredits < 0) {
+      toast.error("Please enter a valid credit amount.");
+      return;
+    }
     updateMutation.mutate({ id, credits: newCredits });
   };
 
   return (
-    <div className="space-y-6 p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold">Manage Policies</h1>
+    <div className="space-y-8 p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between md:items-center">
+        <h1 className="text-3xl font-bold">Manage Policies</h1>
+        {/* Future: Add "Create Policy" button here if needed */}
+      </div>
 
-      {/* <Card>
-        <CardHeader>
-          <CardTitle>Create New Policy</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-          <Input
-            placeholder="Credits"
-            value={credits}
-            onChange={(e) => setCredits(e.target.value)}
-            type="number"
-          />
-          <Select value={type} onValueChange={(val) => setType(val as PolicyType)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Policy Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="BASIC">BASIC</SelectItem>
-              <SelectItem value="PREMIUM">PREMIUM</SelectItem>
-              <SelectItem value="ADVANCED">ADVANCED</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={handleCreate}>Create</Button>
-        </CardContent>
-      </Card> */}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {isLoading
-          ? Array(4)
-              .fill(0)
-              .map((_, i) => <Skeleton key={i} className="h-32 w-full" />)
-          : policies?.map((policy) => (
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {isLoading ? (
+          Array(6)
+            .fill(0)
+            .map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-xl" />)
+        ) : (
+          <AnimatePresence>
+            {policies?.map((policy) => (
               <PolicyCard
                 key={policy.id}
                 id={policy.id}
                 credits={policy.credits}
                 type={policy.type}
                 onUpdate={handleUpdate}
+                isUpdating={updateMutation.isPending}
               />
             ))}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );

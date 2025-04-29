@@ -2,13 +2,14 @@
 
 import { Request, Response } from "express";
 import {
-  createInvitation,
-  getInvitationUsingId,
-} from "../services/inviteService";
-import {
   getInvitationsByUserId,
   getUserByEmail,
 } from "../services/authService";
+import {
+  createInvitation,
+  getInvitationUsingId,
+} from "../services/inviteService";
+import { validateWithZeroBounce } from "../utils/emailValidation";
 
 /**
  * Handles sending an invitation.
@@ -21,12 +22,22 @@ export const sendInvitation = async (
 ): Promise<any> => {
   const { inviterId, inviteeEmail } = req.body;
 
-  // return early if invalid
   if (!inviterId || !inviteeEmail) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
   try {
+    // Validate email with NeverBounce
+    const validation = await validateWithZeroBounce(inviteeEmail);
+    console.log("Email validation response:", validation);
+    
+    if (!validation.isValid || validation.isDisposable || validation.isRole) {
+      return res.status(400).json({
+        error: "Invalid or risky email address",
+        details: validation.suggestion,
+      });
+    }
+
     const existingUser = await getUserByEmail(inviteeEmail);
 
     if (existingUser) {

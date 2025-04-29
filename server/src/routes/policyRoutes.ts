@@ -8,6 +8,6 @@ const router = express.Router();
 router.get('/', policyController.getPolicies);  // Get all policies
 router.post('/', policyController.createPolicy);  // Create a new policy
 router.get('/:id', policyController.getPolicyById);  // Get a policy by ID
-router.patch('/:id', policyController.updatePolicyCredits);  // Update policy credits
+router.put('/:id', policyController.updatePolicyCredits);  // Update policy credits
 
 export default router;
