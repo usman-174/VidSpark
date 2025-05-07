@@ -1,0 +1,26 @@
+{
+  "name": "vidspark",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+   "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usman-174/VidSpark.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/usman-174/VidSpark/issues"
+  },
+  "homepage": "https://github.com/usman-174/VidSpark#readme",
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
