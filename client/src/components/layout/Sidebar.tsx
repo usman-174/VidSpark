@@ -79,7 +79,9 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { to: "/admin/users", icon: Users, label: "Users" },
     // /admin/payments
     { to: "/admin/payments", icon: Banknote, label: "Payments" },
-    // { to: "/admin/settings", icon: Settings, label: "Settings" },
+    { to: "/admin/policies", icon: Settings, label: "Policies" },
+
+    // 
   ];
 
   const links = isAdmin ? adminLinks : userLinks;

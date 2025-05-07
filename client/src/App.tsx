@@ -64,6 +64,7 @@ function App() {
 
             <Route path="/admin/packages" element={<PackagesPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/policies" element={<AdminPolicyPage />} />
           </Route>
         </Route>
       </Routes>
@@ -90,6 +91,8 @@ import SentimentAnalysis from "./pages/SentimentalAnalysis";
 import Packages from "./pages/Packages";
 import PaymentHistory from "./pages/payments/History";
 import AdminPayments from "./pages/Admin/Payments";
+import UpdatePolicy from "./pages/Admin/UpdatePolicy";
+import { AdminPolicyPage } from "./pages/Admin/AdminPolicy";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

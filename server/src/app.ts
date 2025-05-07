@@ -1,3 +1,4 @@
+// src/utils/app.ts
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -11,11 +12,12 @@ import invitationRoutes from "./routes/invitationRoutes";
 import uploadRoutes from "./routes/uploadRoute";
 import ytRouter from "./routes/ytRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
+import policyRoutes from "./routes/policyRoutes";  // Import the new policy routes
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 
 app.use(express.json());
 app.use(morgan("dev"));
@@ -33,18 +35,20 @@ app.get("/health", (req, res) => {
 
 // Authentication and invitation routes
 app.use("/api/auth", authRoutes);
-app.use("/api/invitations",  invitationRoutes);
+app.use("/api/invitations", invitationRoutes);
+
 // Video scraping and admin routes
 app.use("/api/videos", setUser, ytRouter);
 app.use("/api/admin", setUser, restrictTo(["ADMIN"]), adminRouter);
-app.use("/api/packages", setUser, restrictTo(["ADMIN","USER"]), packageRouter);
+app.use("/api/packages", setUser, restrictTo(["ADMIN", "USER"]), packageRouter);
 app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
 app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
-app.use('/api/payments', setUser, restrictTo(["USER","ADMIN"]),paymentRoutes);
+app.use('/api/payments', setUser, restrictTo(["USER", "ADMIN"]), paymentRoutes);
 
-// Start server
+// Include policy routes
+app.use("/api/policies", setUser, restrictTo(["ADMIN", "USER"]), policyRoutes);
+
 app.listen(PORT, () => {
   console.log("Environment:", process.env.NODE_ENV);
-  
-  console.log(` Server running on http://localhost:${PORT}\n`);
+  console.log(`Server running on http://localhost:${PORT}\n`);
 });

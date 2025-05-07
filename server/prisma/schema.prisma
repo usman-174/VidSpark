@@ -143,6 +143,7 @@ enum PolicyType {
   PARENT_RELATIONSHIP
   SIMPLE_RELATIONSHIP
   FIRST_SIGNUP
+  
 }
 
 enum Role {
