@@ -1,10 +1,29 @@
-//src/services/authService.ts
 import { Gender, PolicyType, PrismaClient } from "@prisma/client";
 import { comparePassword, hashPassword } from "../utils/hashUtils";
 import { generateToken } from "../utils/jwtUtils";
 import nodemailer from "nodemailer";
 
 const prisma = new PrismaClient();
+
+// Email transporter setup
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
+
+// Send verification email
+async function sendVerificationEmail(email: string, code: string) {
+  await transporter.sendMail({
+    from: `"Your App" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "Email Verification Code",
+    html: `<p>Your verification code is:</p>
+           <h2>${code}</h2>`,
+  });
+}
 
 export const register = async (
   email: string,
@@ -13,54 +32,39 @@ export const register = async (
   gender: Gender,
   invitationId?: string
 ) => {
-  // Pre-check for an existing user outside of the transaction
   const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    throw new Error("User already exists");
-  }
+  if (existingUser) throw new Error("User already exists");
 
-  // Hash the password before starting the transaction
   const hashedPassword = await hashPassword(password);
 
-  // Wrap the entire registration and credit awarding process in one transaction
+  const emailVerificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+
   const newUser = await prisma.$transaction(async (tx) => {
-    // --- Invitation Handling ---
     let parentId: string | undefined;
+
     if (invitationId) {
-      const invitation = await tx.invitation.findUnique({
-        where: { id: invitationId },
-      });
-      if (!invitation) {
-        throw new Error("Invalid invitation ID");
-      }
-      if (invitation.inviteeEmail !== email) {
+      const invitation = await tx.invitation.findUnique({ where: { id: invitationId } });
+      if (!invitation || invitation.inviteeEmail !== email) {
         throw new Error("Invalid invitation or email mismatch");
       }
-      // check expiration
-      console.log("Show expiration", invitation.expiresAt, new Date());
-
       if (invitation.expiresAt < new Date()) {
         throw new Error("Invitation is expired");
       }
 
-      // Mark the invitation as used
       await tx.invitation.update({
         where: { id: invitationId },
         data: { isUsed: true },
       });
-      // Use the inviter as the direct parent
+
       parentId = invitation.inviterId;
     }
 
-    // --- Load Policies Concurrently ---
     const [parentPolicy, firstSignupPolicy, simplePolicy] = await Promise.all([
       tx.policy.findFirst({ where: { type: PolicyType.PARENT_RELATIONSHIP } }),
       tx.policy.findFirst({ where: { type: PolicyType.FIRST_SIGNUP } }),
       tx.policy.findFirst({ where: { type: PolicyType.SIMPLE_RELATIONSHIP } }),
     ]);
 
-    // --- Create the New User with Signup Bonus ---
-    // The user's initial creditBalance is set to the signup bonus (or 0)
     const createdUser = await tx.user.create({
       data: {
         email,
@@ -68,6 +72,8 @@ export const register = async (
         name,
         gender,
         parentId,
+        isVerified: false,
+        emailVerificationCode,
         creditBalance: firstSignupPolicy?.credits ?? 0,
         credits: {
           create: {
@@ -77,40 +83,23 @@ export const register = async (
       },
     });
 
-    // Array to hold credit operations (both credit record creation and balance updates)
     const creditOperations: Promise<any>[] = [];
 
-    // --- Award Credits to Direct Parent (if exists) ---
     if (parentId && parentPolicy) {
-      // 1. Create a credit record for the parent
       creditOperations.push(
-        tx.credit.create({
-          data: {
-            userId: parentId,
-            credits: parentPolicy.credits,
-          },
-        })
-      );
-      // 2. Increment the parent's creditBalance
-      creditOperations.push(
+        tx.credit.create({ data: { userId: parentId, credits: parentPolicy.credits } }),
         tx.user.update({
           where: { id: parentId },
-          data: {
-            creditBalance: {
-              increment: parentPolicy.credits,
-            },
-          },
+          data: { creditBalance: { increment: parentPolicy.credits } },
         })
       );
 
-      // --- Award SIMPLE_RELATIONSHIP Credits to Ancestors ---
-      // Walk up the ancestry chain from the direct parent
       let currentParent = await tx.user.findUnique({
         where: { id: parentId },
         select: { parentId: true },
       });
-      const ancestors: string[] = [];
 
+      const ancestors: string[] = [];
       while (currentParent?.parentId) {
         ancestors.push(currentParent.parentId);
         currentParent = await tx.user.findUnique({
@@ -120,52 +109,84 @@ export const register = async (
       }
 
       if (simplePolicy && ancestors.length > 0) {
-        // 1. Create credit records for all ancestors in batch
         creditOperations.push(
           tx.credit.createMany({
             data: ancestors.map((ancestorId) => ({
               userId: ancestorId,
               credits: simplePolicy.credits,
             })),
-          })
-        );
-        // 2. Increment the creditBalance for all these ancestors
-        creditOperations.push(
+          }),
           tx.user.updateMany({
             where: { id: { in: ancestors } },
-            data: {
-              creditBalance: {
-                increment: simplePolicy.credits,
-              },
-            },
+            data: { creditBalance: { increment: simplePolicy.credits } },
           })
         );
       }
     }
 
-    // Execute all credit operations concurrently
-    if (creditOperations.length > 0) {
-      await Promise.all(creditOperations);
-    }
+    if (creditOperations.length > 0) await Promise.all(creditOperations);
 
     return createdUser;
   });
 
+  await sendVerificationEmail(email, emailVerificationCode);
+
   return newUser;
+};
+
+export const verifyEmailService = async (
+  email: string,
+  code: string
+): Promise<{ success: boolean; message: string }> => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return { success: false, message: "User not found" };
+  if (user.isVerified) return { success: true, message: "Email already verified" };
+  if (user.emailVerificationCode !== code) return { success: false, message: "Invalid verification code" };
+
+  await prisma.user.update({
+    where: { email },
+    data: {
+      isVerified: true,
+      emailVerificationCode: null,
+    },
+  });
+
+  return { success: true, message: "Email verified successfully" };
+};
+
+export const resendVerificationService = async (
+  email: string
+): Promise<{ success: boolean; message: string }> => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return { success: false, message: "User not found" };
+  if (user.isVerified) return { success: false, message: "Email already verified" };
+
+  const newVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  await prisma.user.update({
+    where: { email },
+    data: { emailVerificationCode: newVerificationCode },
+  });
+
+  await sendVerificationEmail(email, newVerificationCode);
+  
+  return { success: true, message: "Verification email resent successfully" };
 };
 
 export const login = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
-
   if (!user || !(await comparePassword(password, user.password))) {
     throw new Error("Invalid email or password");
   }
+  if (!user.isVerified) {
+    throw new Error("Email not verified. Please check your inbox.");
+  }
+
   user.password = undefined as any;
+
   const totalCredits = await prisma.credit.aggregate({
     where: { userId: user.id },
-    _sum: {
-      credits: true,
-    },
+    _sum: { credits: true },
   });
 
   return {
@@ -179,9 +200,7 @@ export const resetPasswordService = async (
   newPassword: string
 ) => {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user) throw new Error("User not found");
 
   const hashedPassword = await hashPassword(newPassword);
   await prisma.user.update({
@@ -192,39 +211,24 @@ export const resetPasswordService = async (
 
 export const forgetPasswordService = async (email: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user) throw new Error("User not found");
 
-  // Configure nodemailer with Gmail
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
-  });
-
-  // Generate a reset token (you can use a library like uuid or crypto)
-  const resetToken = Math.random().toString(36).substr(2, 12); // Simple token
+  const resetToken = Math.random().toString(36).substr(2, 12);
   await prisma.user.update({
     where: { email },
-    data: { resetToken }, // Save token in DB
+    data: { resetToken },
   });
 
-  // Send the reset email
   const resetLink = `${process.env.ORIGIN}/reset-password?token=${resetToken}&email=${email}`;
   await transporter.sendMail({
     from: `"Your App" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: "Password Reset Request",
-    html: `<p>Click the link below to reset your password:</p>
-           <a href="${resetLink}">${resetLink}</a>`,
+    html: `<p>Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`,
   });
 };
 
 export const getUser = async (userId: string) => {
-  // 1. Find the user (include relationships/details as needed)
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -236,44 +240,27 @@ export const getUser = async (userId: string) => {
       profileImage: true,
       name: true,
       gender: true,
-      
       creditBalance: true,
-      // if you also want to see each Credit record, uncomment below
-      // credits: {
-      //   select: {
-      //     id: true,
-      //     credits: true,
-      //     createdAt: true
-      //   }
-      // }
     },
   });
 
-  // If user doesn't exist, you might want to return null or throw an error
   if (!user) return null;
 
-  // 2. Aggregate the total credits for the user
   const totalCredits = await prisma.credit.aggregate({
     where: { userId },
-    _sum: {
-      credits: true,
-    },
+    _sum: { credits: true },
   });
 
-  // 3. Merge user info and total credits in a single response
   return {
     ...user,
     totalCredits: totalCredits._sum.credits ?? 0,
   };
 };
+
 export const getUserByEmail = async (email: string) => {
-  return prisma.user.findUnique({
-    where: { email },
-  });
+  return prisma.user.findUnique({ where: { email } });
 };
 
 export const getInvitationsByUserId = async (userId: string) => {
-  return prisma.invitation.findMany({
-    where: { inviterId: userId },
-  });
+  return prisma.invitation.findMany({ where: { inviterId: userId } });
 };

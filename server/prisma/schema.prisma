@@ -17,6 +17,8 @@ model User {
   name                String?
   email               String                @unique
   password            String
+  isVerified              Boolean  @default(false)
+  emailVerificationCode   String?
   profileImage        String?
   gender              Gender?               @default(MALE) // Updated to use the Gender enum 
   createdAt           DateTime              @default(now())

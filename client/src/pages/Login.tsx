@@ -35,7 +35,7 @@ const Login: React.FC = () => {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: email||"",
+      email: email || "",
       password: "",
     },
   });
@@ -43,19 +43,37 @@ const Login: React.FC = () => {
   const onSubmit = async (values: LoginFormValues) => {
     setLoading(true);
     try {
-      const { data } = await axios.post("/auth/login", values);
-      login(data.token, data.user);
+      const response = await axios.post("/auth/login", values);
+
+      // ✅ Check if user is verified
+      if (!response.data.user.isVerified) {
+        toast.error("Please verify your email first. Check your inbox for verification code.");
+        navigate("/verify-email", { state: { email: values.email } });
+        return;
+      }
+
+      // ✅ Successful login logic
+      login(response.data.token, response.data.user);
       toast.success("Login successful!");
 
-      if (data.user.role === "ADMIN") {
+      if (response.data.user.role === "ADMIN") {
         navigate("/admin");
       } else {
         navigate("/");
       }
+
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.error || "Something went wrong";
       toast.error(errorMessage);
+
+      // ✅ Handle case where backend says 'not verified'
+      if (error.response?.data?.error?.includes("not verified")) {
+        toast.error("Please verify your email first. Check your inbox for verification code.");
+        navigate("/verify-email", { state: { email: values.email } });
+        return;
+      }
+
       if (error.response?.status === 401) {
         form.setError("password", {
           type: "manual",
