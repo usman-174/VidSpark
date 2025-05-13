@@ -5,6 +5,8 @@ import Register from "@/pages/Register";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import { Toaster } from "react-hot-toast";
+import EmailVerification from "./pages/EmailVerification";
+
 
 function App() {
   const { isLoading } = useAuthStore();
@@ -36,6 +38,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
         </Route>
         {/* Landing page */}
         <Route path="/landing" element={<Landing />} /> {/* //Made by Fatima */}

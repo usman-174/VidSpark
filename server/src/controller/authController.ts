@@ -77,8 +77,8 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 // Email OTP Verification Controller
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, code } = req.body;
-    const result = await verifyEmailService(email, code);
+    const { email, verificationCode} = req.body;
+    const result = await verifyEmailService(email, verificationCode);
     if (!result.success) {
       res.status(400).json({ error: result.message });
     } else {
