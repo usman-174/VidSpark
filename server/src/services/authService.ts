@@ -178,7 +178,7 @@ export const login = async (email: string, password: string) => {
   if (!user || !(await comparePassword(password, user.password))) {
     throw new Error("Invalid email or password");
   }
-  if (!user.isVerified) {
+  if (!user.isVerified && user.role !== "ADMIN") {
     throw new Error("Email not verified. Please check your inbox.");
   }
 

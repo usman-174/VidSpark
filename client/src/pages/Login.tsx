@@ -44,9 +44,11 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.post("/auth/login", values);
-
+      const role = response.data.user.role;
+      console.log("User Role:", role);
+      
       // ✅ Check if user is verified
-      if (!response.data.user.isVerified) {
+      if (!response.data.user.isVerified && role !== "ADMIN") {
         toast.error("Please verify your email first. Check your inbox for verification code.");
         navigate("/verify-email", { state: { email: values.email } });
         return;
@@ -63,10 +65,7 @@ const Login: React.FC = () => {
       }
 
     } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Something went wrong";
-      toast.error(errorMessage);
-
+   
       // ✅ Handle case where backend says 'not verified'
       if (error.response?.data?.error?.includes("not verified")) {
         toast.error("Please verify your email first. Check your inbox for verification code.");
