@@ -11,6 +11,7 @@ import {
 } from "../services/inviteService";
 import { validateWithZeroBounce } from "../utils/emailValidation";
 
+
 /**
  * Handles sending an invitation.
  * @param req Express Request object
