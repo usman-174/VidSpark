@@ -17,7 +17,7 @@ import { toast } from "react-hot-toast";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import * as z from "zod";
 
-// Update schema to include gender
+// ✅ Validation Schema
 const registerSchema = z
   .object({
     email: z.string().trim().email("Invalid email address"),
@@ -44,7 +44,7 @@ const Register: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
-  const [error, setError] = useState<string | null>(null);
+
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -56,6 +56,7 @@ const Register: React.FC = () => {
     },
   });
 
+  // ✅ Updated onSubmit with "verify-email" logic
   const onSubmit = async (values: RegisterFormValues) => {
     setLoading(true);
     try {
@@ -66,11 +67,15 @@ const Register: React.FC = () => {
         gender: values.gender,
         name: values.name,
       });
-      toast.success("Registration successful! Please login.");
-      navigate("/login?email=" + values.email);
+
+      toast.success(
+        "Registration successful! Please check your email for verification code."
+      );
+      navigate("/verify-email", { state: { email: values.email } });
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error || ("Something went wrong" as string);
+        error.response?.data?.error || "Something went wrong";
+
       if (errorMessage.includes("already exists")) {
         form.setError("email", {
           type: "manual",
@@ -85,6 +90,7 @@ const Register: React.FC = () => {
     }
   };
 
+  // ✅ Invitation link validation
   useEffect(() => {
     const fetchInvitationData = async () => {
       if (invitationId && !hasFetchedInvitation.current) {
@@ -113,12 +119,14 @@ const Register: React.FC = () => {
     fetchInvitationData();
   }, [invitationId, navigate, form, setSearchParams]);
 
+  // ✅ Redirect if authenticated
   useLayoutEffect(() => {
     if (isAuthenticated) {
       navigate("/");
     }
   }, [isAuthenticated, navigate]);
 
+  // ✅ UI
   return (
     <div className="flex min-h-screen bg-gradient-to-r from-blue-500 to-purple-600">
       {/* Left Side - Heading */}
@@ -176,7 +184,6 @@ const Register: React.FC = () => {
                 )}
               />
 
-              {/* Redesigned Gender Radio Button Field */}
               <FormField
                 name="gender"
                 control={form.control}

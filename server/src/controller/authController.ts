@@ -5,30 +5,26 @@ import {
   resetPasswordService,
   forgetPasswordService,
   getUser,
+  verifyEmailService,
+  resendVerificationService,
 } from "../services/authService";
 import { Gender } from "@prisma/client";
 
-export const registerUser = async (req: Request, res: Response) => {
-  // Now we grab inviterId if it’s included in the request body
+// Register Controller
+export const registerUser = async (req: Request, res: Response): Promise<void> => {
   const { email, password, invitationId, name, gender } = req.body;
-  const processedGender = gender === "male" ? Gender.MALE : Gender.FEMALE;
-  try {
-    // Pass invitationId to the register service
-    const user = await register(
-      email,
-      password,
-      name,
-      processedGender,
-      invitationId
-    );
+  const processedGender = gender === "female" ? Gender.FEMALE : Gender.MALE;
 
-    res.status(201).json({ message: "User registered successfully", user });
+  try {
+    const user = await register(email, password, name, processedGender, invitationId);
+    res.status(201).json({ message: "User registered successfully. Please verify your email.", user });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
 };
 
-export const loginUser = async (req: Request, res: Response) => {
+// Login Controller
+export const loginUser = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
   try {
@@ -39,7 +35,8 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+// Reset Password Controller
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, newPassword } = req.body;
     await resetPasswordService(email, newPassword);
@@ -48,7 +45,9 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(400).json({ error: error.message });
   }
 };
-export const forgetPassword = async (req: Request, res: Response) => {
+
+// Forget Password Controller
+export const forgetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
     await forgetPasswordService(email);
@@ -58,19 +57,49 @@ export const forgetPassword = async (req: Request, res: Response) => {
   }
 };
 
-// Get current user
-export const getCurrentUser = async (req: Request, res: Response) => {
+// Get Current User Controller
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { user } = res.locals;
-
     const currentUser = await getUser(user.userId);
 
     if (!currentUser) {
       res.status(404).json({ message: "User not found" });
+      return;
     }
 
     res.status(200).json(currentUser);
   } catch (error) {
     res.status(500).json({ message: "Error fetching user details" });
+  }
+};
+
+// Email OTP Verification Controller
+export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, verificationCode} = req.body;
+    const result = await verifyEmailService(email, verificationCode);
+    if (!result.success) {
+      res.status(400).json({ error: result.message });
+    } else {
+      res.status(200).json({ message: result.message });
+    }
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Resend Verification Email Controller
+export const resendVerificationEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const result = await resendVerificationService(email);
+    if (!result.success) {
+      res.status(400).json({ error: result.message });
+    } else {
+      res.status(200).json({ message: result.message });
+    }
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
   }
 };
