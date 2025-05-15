@@ -5,7 +5,8 @@ import Register from "@/pages/Register";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import { Toaster } from "react-hot-toast";
-import EmailVerification from "./pages/EmailVerification";
+
+import TitleGeneration from "@/pages/TitleGeneration";
 
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
             <Route path="/packages" element={<Packages />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/payment-history" element={<PaymentHistory />} />
+            <Route path="/title-generation" element={<TitleGeneration />} />
             <Route
               path="/sentimental-analysis"
               element={<SentimentAnalysis />}
@@ -96,6 +98,7 @@ import PaymentHistory from "./pages/payments/History";
 import AdminPayments from "./pages/Admin/Payments";
 import UpdatePolicy from "./pages/Admin/UpdatePolicy";
 import { AdminPolicyPage } from "./pages/Admin/AdminPolicy";
+import EmailVerification from "./pages/emailVerification";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

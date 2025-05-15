@@ -58,20 +58,15 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const { user } = useAuthStore();
   const location = useLocation();
   const isAdmin = user?.role === "ADMIN";
+  
   const userLinks = [
     { to: "/", icon: Home, label: "Home" },
-    // { to: "/dashboard", icon: Layout, label: "Dashboard" },
     { to: "/profile", icon: User, label: "Profile" },
-    {
-      to: "/sentimental-analysis",
-      icon: BarChart,
-      label: "Sentiment Analysis",
-    },
-    // payment-history
+    { to: "/sentimental-analysis", icon: BarChart, label: "Sentiment Analysis" },
     { to: "/payment-history", icon: Banknote, label: "Payment History" },
-    // { to: "/settings", icon: Settings, label: "Settings" },
+    { to: "/title-generation", icon: Layout, label: "Title Generation" },
   ];
-
+  
   const adminLinks = [
     { to: "/admin", icon: BarChart, label: "Dashboard" },
     { to: "/admin/videos", icon: Video, label: "Videos" },
