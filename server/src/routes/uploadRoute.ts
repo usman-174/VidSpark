@@ -1,11 +1,10 @@
 import { Router } from "express";
 
-import { upload } from "../middleware/uploadMiddleware";
-import { setUser } from "../middleware/authMiddleware";
 import { uploadProfileImage } from "../controller/uploadController";
+import { upload } from "../middleware/uploadMiddleware";
 
 const uploadRoutes = Router();
 
-uploadRoutes.post("/profile-image", setUser, upload.single("file"), uploadProfileImage);
+uploadRoutes.post("/profile-image",  upload.single("file"), uploadProfileImage);
 
 export default uploadRoutes;

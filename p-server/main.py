@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from llama_cpp import Llama
 from fastapi.middleware.cors import CORSMiddleware
 
+
+# pip install fastapi pydantic llama-cpp-python
+
 # Load model once at startup
 llm = Llama(model_path="qwen.gguf", n_ctx=2048, n_threads=4)
 

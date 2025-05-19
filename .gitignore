@@ -8,3 +8,8 @@ package-lock.json
 
 
 p-server/*.gguf
+p-server/venv/
+p-server/__pycache__
+p-server/*.pyc
+
+p-server/
