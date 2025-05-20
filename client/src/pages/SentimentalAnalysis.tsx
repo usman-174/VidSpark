@@ -76,6 +76,7 @@ const SentimentAnalysis = () => {
       return;
     }
 
+    
     setLoading(true);
     setError("");
 

@@ -9,12 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPopularKeywords } from "@/lib/utils";
-import { Clock, TrendingUp } from "lucide-react";
+import { Clock, TrendingUp, Activity, BarChart2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 const Home = () => {
-  // const [searchText, setSearchText] = useState("");
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +37,7 @@ const Home = () => {
       setIsLoading(false);
     }
   };
+
   const VideoCard = ({ video }: { video: any }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
       <div className="aspect-video relative">
@@ -72,20 +75,62 @@ const Home = () => {
       <div className="grid gap-8 md:grid-cols-[2fr,1fr]">
         {/* Main Content */}
         <div className="space-y-6">
-          {/* <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Generate video title..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button>Generate</Button>
-          </div> */}
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl">
+                <Zap className="mr-2 h-5 w-5 text-yellow-500" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>Access main features quickly</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-4">
+              <Button asChild>
+                <Link to="/title-generation">Generate Titles</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/sentimental-analysis">Sentiment Analysis</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/packages">View Packages</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/profile">Your Profile</Link>
+              </Button>
+            </CardContent>
+          </Card>
 
+          {/* Recent Activities */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl">
+                <Activity className="mr-2 h-5 w-5 text-green-500" />
+                Recent Activities
+              </CardTitle>
+              <CardDescription>What you've been up to recently</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">No recent activities to show.</p>
+              {/* Placeholder: Implement recent activities fetching and display */}
+            </CardContent>
+          </Card>
+
+          {/* Useful Insights */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl">
+                <BarChart2 className="mr-2 h-5 w-5 text-blue-500" />
+                Useful Insights
+              </CardTitle>
+              <CardDescription>Summary and stats at a glance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Insights will be available here.</p>
+              {/* Placeholder: Implement insights charts or stats */}
+            </CardContent>
+          </Card>
+
+          {/* Trending Videos */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
@@ -119,32 +164,33 @@ const Home = () => {
         </div>
 
         {/* Sidebar */}
-        {/* <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-lg">Popular Keywords</CardTitle>
-            <CardDescription>Trending topics in recent videos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="flex flex-wrap gap-2">
-                {isLoading
-                  ? [...Array(10)].map((_, i) => (
-                      <Skeleton key={i} className="h-6 w-20" />
-                    ))
-                  : keywords.map((keyword) => (
-                      <Badge
-                        key={keyword}
-                        variant="secondary"
-                        className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100"
-                        onClick={() => setSearchText(keyword)}
-                      >
-                        {keyword}
-                      </Badge>
-                    ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card> */}
+        <div>
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="text-lg">Popular Keywords</CardTitle>
+              <CardDescription>Trending topics in recent videos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="flex flex-wrap gap-2">
+                  {isLoading
+                    ? [...Array(10)].map((_, i) => (
+                        <Skeleton key={i} className="h-6 w-20" />
+                      ))
+                    : keywords.map((keyword) => (
+                        <Badge
+                          key={keyword}
+                          variant="secondary"
+                          className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100"
+                        >
+                          {keyword}
+                        </Badge>
+                      ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -12,27 +12,52 @@ enum Gender {
   FEMALE
 }
 
+
+// Update your User model to include the relation
 model User {
-  id                  String                @id @default(uuid())
-  name                String?
-  email               String                @unique
-  password            String
-  isVerified              Boolean  @default(false)
-  emailVerificationCode   String?
-  profileImage        String?
-  gender              Gender?               @default(MALE) // Updated to use the Gender enum 
-  createdAt           DateTime              @default(now())
-  resetToken          String?
-  role                Role                  @default(USER)
-  parentId            String?
-  creditBalance       Int                   @default(0) // <-- current available credits
-  credits             Credit[]
-  sentInvitations     Invitation[]          @relation("UserInvitations")
-  parent              User?                 @relation("ParentOf", fields: [parentId], references: [id])
-  children            User[]                @relation("ParentOf")
-  payments            Payment[]
-  SentimentalAnalysis SentimentalAnalysis[]
+  id                    String                @id @default(uuid())
+  name                  String?
+  email                 String                @unique
+  password              String
+  isVerified            Boolean               @default(false)
+  emailVerificationCode String?
+  profileImage          String?
+  gender                Gender?               @default(MALE)
+  createdAt             DateTime              @default(now())
+  resetToken            String?
+  role                  Role                  @default(USER)
+  parentId              String?
+  creditBalance         Int                   @default(0) 
+  credits               Credit[]
+  sentInvitations       Invitation[]          @relation("UserInvitations")
+  parent                User?                 @relation("ParentOf", fields: [parentId], references: [id])
+  children              User[]                @relation("ParentOf")
+  payments              Payment[]
+  SentimentalAnalysis   SentimentalAnalysis[]
+  titleGenerations      TitleGeneration[]     // Add this line
 }
+
+
+model TitleGeneration {
+  id          String    @id @default(uuid())
+  prompt      String    @db.Text
+  userId      String
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titles      GeneratedTitle[]  // One-to-many relationship with titles
+  provider    String?   // Store which provider generated the titles (ollama, openrouter, etc.)
+}
+
+// Model for individual titles within a generation
+model GeneratedTitle {
+  id                String    @id @default(uuid())
+  title             String
+  keywords          String[]  // Store keywords as an array
+  titleGenerationId String
+  generation        TitleGeneration @relation(fields: [titleGenerationId], references: [id], onDelete: Cascade)
+  isFavorite        Boolean   @default(false)
+}
+
 
 model Credit {
   id        String   @id @default(uuid())
