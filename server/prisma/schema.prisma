@@ -35,6 +35,15 @@ model User {
   payments              Payment[]
   SentimentalAnalysis   SentimentalAnalysis[]
   titleGenerations      TitleGeneration[]     // Add this line
+  keywordAnalyses      KeywordAnalysis[]
+}
+model KeywordAnalysis {
+  id          String    @id @default(uuid())
+  userId      String
+  videoUrl    String
+  keywords    String[]  // Store keywords as a string array
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 

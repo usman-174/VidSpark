@@ -392,7 +392,7 @@ export async function generateTitle({
   // Try Ollama first
   try {
     // REMOVE THE SIMULATED ERROR
-    // throw new Error("Simulated error for testing fallback");
+     throw new Error("Simulated error for testing fallback");
     return await generateTitlesWithOllama(prompt, maxLength, includeKeywords);
   } catch (ollamaError) {
     console.log("Ollama failed, falling back to OpenRouter:", ollamaError.message);
