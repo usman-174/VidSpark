@@ -45,6 +45,13 @@ model KeywordAnalysis {
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+model PopularKeyword {
+  id        String   @id @default(uuid())
+  keyword   String   @unique
+  count     Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
 
 
 model TitleGeneration {

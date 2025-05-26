@@ -1,9 +1,12 @@
-// src/routes/keywordRoutes.ts
 import express from "express";
-import { analyzeKeywordController } from "../controller/keywordController";
+import {
+  analyzeKeywordController,
+  getPopularKeywordsController,
+} from "../controller/keywordController";
 
 const router = express.Router();
 
 router.post("/analyze", analyzeKeywordController);
+router.get("/popular", getPopularKeywordsController);
 
 export default router;

@@ -1,33 +1,55 @@
-// src/controller/keywordController.ts
 import { Request, Response } from "express";
-import { analyzeKeyword } from "../services/keywordService";
+import { analyzeKeyword, getPopularKeywords } from "../services/keywordService";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 interface KeywordRequest {
   keyword: string;
+  userId?: string;
 }
 
 export const analyzeKeywordController = async (
   req: Request<{}, {}, KeywordRequest>,
   res: Response
-) => {
+): Promise<any> => {
   try {
-    const { keyword } = req.body;
-    
+    const { keyword, userId } = req.body;
+
     if (!keyword || typeof keyword !== "string") {
       return res.status(400).json({ error: "Valid keyword is required" });
     }
 
-    if (keyword.length > 100) {
-      return res.status(400).json({ error: "Keyword too long" });
+    const analysis = await analyzeKeyword(keyword);
+
+    if (userId) {
+      await prisma.keywordAnalysis.create({
+        data: {
+          userId,
+          videoUrl: "",
+          keywords: [keyword.trim()],
+        },
+      });
     }
 
-    const analysis = await analyzeKeyword(keyword.trim());
     res.json(analysis);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Keyword analysis error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to analyze keyword",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
+  }
+};
+
+export const getPopularKeywordsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const keywords = await getPopularKeywords(); // This should return [{ term, usageCount }, ...]
+    res.json(keywords);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch popular keywords" });
   }
 };
