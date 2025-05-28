@@ -18,12 +18,16 @@ export const recordKeywordUsage = async (keyword: string) => {
   });
 };
 
-// Fetch top N most searched keywords
 export const getTopKeywords = async (limit: number = 10) => {
-  return await prisma.popularKeyword.findMany({
+  const keywords = await prisma.popularKeyword.findMany({
     orderBy: {
       count: "desc",
     },
     take: limit,
   });
+
+  return keywords.map(({ keyword, count }) => ({
+    term: keyword,
+    usageCount: count,
+  }));
 };

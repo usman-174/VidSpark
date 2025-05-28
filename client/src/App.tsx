@@ -57,6 +57,8 @@ function App() {
               path="/sentimental-analysis"
               element={<SentimentAnalysis />}
             />
+            <Route path="/keyword-analysis" element={<KeywordAnalysis />} />
+
             {/* Profile */}
             <Route path="/profile" element={<Profile />} />
           </Route>

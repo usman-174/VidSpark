@@ -101,7 +101,7 @@ const KeywordAnalysis = () => {
                   >
                     <span className="font-medium">{kw.term}</span>
                     <span className="text-sm text-gray-600">
-                      {kw.usageCount?.toFixed(1) ?? "N/A"}
+                       {kw.usageCount ? Number(kw.usageCount).toFixed(1) : "N/A"}
                     </span>
                   </li>
                 ))
