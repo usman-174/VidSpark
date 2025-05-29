@@ -53,6 +53,14 @@ model PopularKeyword {
 }
 
 
+model KeywordUsage {
+  id        String   @id @default(uuid())
+  keyword   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 
 model TitleGeneration {
   id          String    @id @default(uuid())

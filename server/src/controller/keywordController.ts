@@ -12,21 +12,28 @@ interface KeywordRequest {
 export const analyzeKeywordController = async (
   req: Request<{}, {}, KeywordRequest>,
   res: Response
-): Promise<any> => {
+): Promise<void> => {
   try {
     const { keyword, userId } = req.body;
 
     if (!keyword || typeof keyword !== "string") {
-      return res.status(400).json({ error: "Valid keyword is required" });
+      res.status(400).json({ error: "Valid keyword is required" });
+      return;
     }
 
     const analysis = await analyzeKeyword(keyword);
 
-    if (userId) {
+    // If userId is provided, store the analysis with the first videoUrl (use first video if exists)
+    if (userId && analysis.topVideos && analysis.topVideos.length > 0) {
+      // Use videoUrl from the analyzed data if available, fallback to constructing URL
+      const firstVideoUrl =
+        analysis.topVideos[0].videoUrl ||
+        `https://www.youtube.com/watch?v=${analysis.topVideos[0].videoId}`;
+
       await prisma.keywordAnalysis.create({
         data: {
           userId,
-          videoUrl: "",
+          videoUrl: firstVideoUrl,
           keywords: [keyword.trim()],
         },
       });
@@ -47,9 +54,10 @@ export const getPopularKeywordsController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const keywords = await getPopularKeywords(); // This should return [{ term, usageCount }, ...]
+    const keywords = await getPopularKeywords(); // [{ term, usageCount }, ...]
     res.json(keywords);
   } catch (err: any) {
+    console.error("Failed to fetch popular keywords", err);
     res.status(500).json({ error: "Failed to fetch popular keywords" });
   }
 };

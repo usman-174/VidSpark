@@ -1,6 +1,5 @@
 import {
   getSuggestions,
-  getTopVideos,
   getOpportunityScore,
 } from "../utils/keywordProcessor";
 import { fetchCached } from "./cacheService";
@@ -8,23 +7,54 @@ import { fetchSearchResults } from "./youtubeApiService";
 import { recordKeywordUsage, getTopKeywords } from "./keywordStatsService";
 
 export const analyzeKeyword = async (keyword: string) => {
-  await recordKeywordUsage(keyword); // Track keyword use
+  // Track keyword usage
+  await recordKeywordUsage(keyword);
 
+  // Fetch suggestions and top videos
   const [suggestions, topVideos] = await Promise.all([
     fetchCached(`suggestions:${keyword}`, () => getSuggestions(keyword)),
-    fetchCached(`videos:${keyword}`, () => fetchSearchResults(keyword)),
+    fetchCached(`videos:${keyword}`, () => fetchSearchResults(keyword, true)),
   ]);
 
+  // Calculate overall opportunity score for the keyword based on videos
   const opportunityScore = getOpportunityScore(topVideos);
+
+  // Map videos with metrics
+  const videosWithMetrics = topVideos.map((video: any) => {
+    const stats = video.channelStats || {
+      subscriberCount: 0,
+      viewCount: 0,
+      videoCount: 0,
+    };
+
+    // Compute competition metric
+    const competitionMetric =
+      stats.subscriberCount * 0.6 + stats.viewCount * 0.4;
+
+    return {
+      videoId: video.videoId,
+      videoTitle: video.title || '',        // fixed key name here
+      videoUrl: video.videoUrl || '',        // optionally add videoUrl from your fetch
+      viewCount: video.viewCount || 0,
+      channelId: video.channelId,
+      channelTitle: video.channelTitle,
+      subscriberCount: stats.subscriberCount,
+      channelViewCount: stats.viewCount,
+      channelVideoCount: stats.videoCount,
+      estimatedSearchVolume: video.estimatedSearchVolume || 0,
+      competitionMetric,
+      opportunityScore: video.opportunityScore || null, // can keep null if not calculated per-video
+    };
+  });
 
   return {
     keyword,
     suggestions,
-    topVideos,
+    topVideos: videosWithMetrics,
     opportunityScore,
   };
 };
 
 export const getPopularKeywords = async () => {
-  return await getTopKeywords(); // Top trending keywords
+  return await getTopKeywords();
 };

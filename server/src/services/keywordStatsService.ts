@@ -6,28 +6,39 @@ const prisma = new PrismaClient();
 export const recordKeywordUsage = async (keyword: string) => {
   const cleaned = keyword.trim().toLowerCase();
 
-  await prisma.popularKeyword.upsert({
-    where: { keyword: cleaned },
-    update: {
-      count: { increment: 1 },
-    },
-    create: {
+  await prisma.keywordUsage.create({
+    data: {
       keyword: cleaned,
-      count: 1,
     },
   });
 };
 
+
 export const getTopKeywords = async (limit: number = 10) => {
-  const keywords = await prisma.popularKeyword.findMany({
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  // Aggregate count grouped by keyword for last 7 days
+  const keywords = await prisma.keywordUsage.groupBy({
+    by: ['keyword'],
+    where: {
+      createdAt: {
+        gte: oneWeekAgo,
+      },
+    },
+    _count: {
+      keyword: true,
+    },
     orderBy: {
-      count: "desc",
+      _count: {
+        keyword: 'desc',
+      },
     },
     take: limit,
   });
 
-  return keywords.map(({ keyword, count }) => ({
+  return keywords.map(({ keyword, _count }) => ({
     term: keyword,
-    usageCount: count,
+    usageCount: _count.keyword,
   }));
 };
