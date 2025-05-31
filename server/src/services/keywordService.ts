@@ -5,6 +5,7 @@ import {
 import { fetchCached } from "./cacheService";
 import { fetchSearchResults } from "./youtubeApiService";
 import { recordKeywordUsage, getTopKeywords } from "./keywordStatsService";
+import { Request } from "express";
 
 export const analyzeKeyword = async (keyword: string) => {
   // Track keyword usage
@@ -33,8 +34,8 @@ export const analyzeKeyword = async (keyword: string) => {
 
     return {
       videoId: video.videoId,
-      videoTitle: video.title || '',        // fixed key name here
-      videoUrl: video.videoUrl || '',        // optionally add videoUrl from your fetch
+      videoTitle: video.title || '',
+      videoUrl: video.videoUrl || '',
       viewCount: video.viewCount || 0,
       channelId: video.channelId,
       channelTitle: video.channelTitle,
@@ -43,7 +44,7 @@ export const analyzeKeyword = async (keyword: string) => {
       channelVideoCount: stats.videoCount,
       estimatedSearchVolume: video.estimatedSearchVolume || 0,
       competitionMetric,
-      opportunityScore: video.opportunityScore || null, // can keep null if not calculated per-video
+      opportunityScore: video.opportunityScore || null,
     };
   });
 
@@ -55,6 +56,15 @@ export const analyzeKeyword = async (keyword: string) => {
   };
 };
 
-export const getPopularKeywords = async () => {
-  return await getTopKeywords();
+export const getPopularKeywords = async (req: Request) => {
+  const { minUsage } = req.query;
+
+  const keywords = await getTopKeywords();
+
+  if (minUsage) {
+    const min = Number(minUsage);
+    return keywords.filter((kw) => kw.usageCount >= min);
+  }
+
+  return keywords;
 };

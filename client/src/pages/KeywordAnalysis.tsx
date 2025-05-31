@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,42 +9,63 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import axiosInstance from "@/api/axiosInstance";
 
-const formatNumber = (num: number) => {
+const formatNumber = (num: number): string => {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
   if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
   return num.toString();
 };
 
+// Types
+interface PopularKeyword {
+  term: string;
+  usageCount: number;
+}
+
+interface VideoData {
+  videoId: string;
+  videoTitle?: string;
+  title?: string;
+  channelTitle?: string;
+  viewCount?: number;
+  subscriberCount?: number;
+}
+
+interface AnalyzeResponse {
+  suggestions: string[];
+  topVideos: VideoData[];
+  opportunityScore: number;
+  relatedKeywords: string[];
+  questions: string[];
+  contentGaps: string[];
+  insights: string[];
+}
+
 const KeywordAnalysis = () => {
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [competingVideos, setCompetingVideos] = useState<any[]>([]);
+  const [competingVideos, setCompetingVideos] = useState<VideoData[]>([]);
   const [opportunityScore, setOpportunityScore] = useState<number | null>(null);
   const [relatedKeywords, setRelatedKeywords] = useState<string[]>([]);
   const [questions, setQuestions] = useState<string[]>([]);
   const [contentGaps, setContentGaps] = useState<string[]>([]);
   const [insights, setInsights] = useState<string[]>([]);
-
-  const [popularKeywords, setPopularKeywords] = useState<
-    { term: string; usageCount: number }[]
-  >([]);
+  const [popularKeywords, setPopularKeywords] = useState<PopularKeyword[]>([]);
   const [loadingPopularKeywords, setLoadingPopularKeywords] = useState(true);
 
-  useEffect(() => {
-    fetchPopularKeywords();
-  }, []);
+  // New filter state for popular keywords
+  const [filter, setFilter] = useState<"week" | "month" | null>(null);
 
-  const fetchPopularKeywords = async () => {
+  useEffect(() => {
+    fetchPopularKeywords(filter);
+  }, [filter]);
+
+  const fetchPopularKeywords = async (filterParam?: "week" | "month" | null) => {
     try {
       setLoadingPopularKeywords(true);
-      const res = await axiosInstance.get("/keywords/popular");
-      if (Array.isArray(res.data)) {
-        setPopularKeywords(res.data);
-      } else {
-        setPopularKeywords([]);
-      }
+      const url = filterParam ? `/keywords/popular?filter=${filterParam}` : "/keywords/popular";
+      const res = await axiosInstance.get<PopularKeyword[]>(url);
+      setPopularKeywords(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Failed to fetch popular keywords:", error);
       setPopularKeywords([]);
@@ -60,29 +77,25 @@ const KeywordAnalysis = () => {
   const handleAnalyze = async (inputKeyword?: string) => {
     const searchKeyword = inputKeyword ?? keyword;
     if (!searchKeyword.trim()) return;
-    setLoading(true);
 
+    setLoading(true);
     try {
-      const res = await axiosInstance.post("/keywords/analyze", {
+      const res = await axiosInstance.post<AnalyzeResponse>("/keywords/analyze", {
         keyword: searchKeyword,
       });
 
       const data = res.data;
       setKeyword(searchKeyword);
-
       setSuggestions(data.suggestions || []);
       setCompetingVideos(data.topVideos || []);
-      setOpportunityScore(
-        typeof data.opportunityScore === "number" ? data.opportunityScore : null
-      );
-
-      // Make sure your backend returns these fields in the response!
+      setOpportunityScore(typeof data.opportunityScore === "number" ? data.opportunityScore : null);
       setRelatedKeywords(data.relatedKeywords || []);
       setQuestions(data.questions || []);
       setContentGaps(data.contentGaps || []);
       setInsights(data.insights || []);
 
-      await fetchPopularKeywords();
+      // Refresh popular keywords on analyze but keep current filter
+      fetchPopularKeywords(filter);
     } catch (error) {
       console.error("Error analyzing keyword:", error);
     } finally {
@@ -92,37 +105,62 @@ const KeywordAnalysis = () => {
 
   return (
     <div className="flex max-w-7xl mx-auto py-10 px-4 gap-6">
-      {/* Sidebar for Top Keywords */}
-      <aside className="w-full md:w-1/4 border rounded-lg p-4 bg-gray-50">
-        <h3 className="font-semibold mb-4 text-lg">🔥Most Searched Keywords</h3>
-        {loadingPopularKeywords ? (
-          <p className="text-sm text-gray-500">Loading...</p>
-        ) : (
-          <ScrollArea className="h-[500px] pr-2">
-            <ul className="space-y-2">
-              {popularKeywords.length > 0 ? (
-                popularKeywords.map((kw, i) => (
-                  <li
-                    key={i}
-                    className="flex justify-between items-center p-2 bg-white rounded shadow-sm hover:bg-gray-100 cursor-pointer"
-                    onClick={() => handleAnalyze(kw.term)}
-                    title={`Analyze "${kw.term}"`}
-                  >
-                    <span className="font-medium">{kw.term}</span>
-                    <span className="text-sm text-gray-600">
-                      {kw.usageCount ? formatNumber(kw.usageCount) : "N/A"}
-                    </span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-gray-500">No popular keywords found</li>
-              )}
-            </ul>
-          </ScrollArea>
-        )}
-      </aside>
+      <aside className="w-full md:w-[240px] bg-white shadow rounded-lg border p-4">
+  <div className="flex flex-col gap-3 mb-4">
+    <h3 className="text-lg font-semibold text-gray-800">
+      🔥 Top Search Keywords
+    </h3>
 
-      {/* Main Keyword Analyzer */}
+    {/* Filter Buttons */}
+    <div className="flex gap-2">
+      {["All", "Week", "Month"].map((label) => {
+        const key = label.toLowerCase() === "all" ? null : label.toLowerCase();
+        const isActive = filter === key;
+
+        return (
+          <button
+            key={label}
+            onClick={() => setFilter(key as "week" | "month" | null)}
+            className={`px-3 py-1 text-xs rounded-full font-medium transition-all border ${
+              isActive
+                ? "bg-amber-500 text-white border-amber-500"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-300"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+
+  {loadingPopularKeywords ? (
+    <p className="text-sm text-gray-500">Loading popular keywords...</p>
+  ) : (
+    <ScrollArea className="h-[300px] pr-1">
+      <ul className="space-y-2">
+        {popularKeywords.length > 0 ? (
+          popularKeywords.map((kw, i) => (
+            <li
+              key={i}
+              onClick={() => handleAnalyze(kw.term)}
+              className="cursor-pointer p-2 rounded-md bg-gray-50 hover:bg-gray-100 transition-all flex justify-between items-center text-sm"
+              title={`Analyze "${kw.term}"`}
+            >
+              <span className="font-medium text-gray-800">{kw.term}</span>
+              <span className="text-gray-500">{formatNumber(kw.usageCount)}</span>
+            </li>
+          ))
+        ) : (
+          <li className="text-gray-500 text-sm">No popular keywords found</li>
+        )}
+      </ul>
+    </ScrollArea>
+  )}
+</aside>
+
+
+      {/* Main */}
       <main className="flex-1">
         <Card>
           <CardHeader>
@@ -136,9 +174,7 @@ const KeywordAnalysis = () => {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="e.g. AI tools for students"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAnalyze();
-              }}
+              onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
             />
             <Button onClick={() => handleAnalyze()} disabled={loading}>
               {loading && <Loader2 className="animate-spin mr-2 w-4 h-4" />}
@@ -159,7 +195,7 @@ const KeywordAnalysis = () => {
                 <h3 className="font-semibold mb-2">Search Suggestions:</h3>
                 <div className="flex flex-wrap gap-2">
                   {suggestions.map((s, i) => (
-                    <Badge key={i} variant="outline">
+                    <Badge key={i} className="bg-black text-white hover:bg-gray-800">
                       {s}
                     </Badge>
                   ))}
@@ -181,20 +217,12 @@ const KeywordAnalysis = () => {
                       >
                         {video.videoTitle || video.title || "Untitled"}
                       </a>
+                      <p className="text-sm text-gray-600">Channel: {video.channelTitle || "Unknown"}</p>
                       <p className="text-sm text-gray-600">
-                        Channel: {video.channelTitle || "Unknown"}
+                        Views: {video.viewCount ? formatNumber(video.viewCount) : "N/A"}
                       </p>
                       <p className="text-sm text-gray-600">
-                        Views:{" "}
-                        {video.viewCount
-                          ? formatNumber(Number(video.viewCount))
-                          : "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Subscribers:{" "}
-                        {video.subscriberCount
-                          ? formatNumber(Number(video.subscriberCount))
-                          : "N/A"}
+                        Subscribers: {video.subscriberCount ? formatNumber(video.subscriberCount) : "N/A"}
                       </p>
                     </li>
                   ))}

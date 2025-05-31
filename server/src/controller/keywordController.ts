@@ -49,15 +49,25 @@ export const analyzeKeywordController = async (
   }
 };
 
+
 export const getPopularKeywordsController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const keywords = await getPopularKeywords(); // [{ term, usageCount }, ...]
+    const { filter } = req.query; // "week" | "month" | undefined
+
+    if (filter && filter !== "week" && filter !== "month") {
+      res.status(400).json({ error: "Invalid filter" });
+      return;
+    }
+
+    const keywords = await getPopularKeywords(req);
+
     res.json(keywords);
   } catch (err: any) {
     console.error("Failed to fetch popular keywords", err);
     res.status(500).json({ error: "Failed to fetch popular keywords" });
   }
 };
+

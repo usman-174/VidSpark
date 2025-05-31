@@ -14,18 +14,25 @@ export const recordKeywordUsage = async (keyword: string) => {
 };
 
 
-export const getTopKeywords = async (limit: number = 10) => {
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+export const getTopKeywords = async (
+  filter: "week" | "month" | null = null,
+  limit: number = 10
+) => {
+  let dateThreshold: Date | undefined;
 
-  // Aggregate count grouped by keyword for last 7 days
+  if (filter === "week") {
+    dateThreshold = new Date();
+    dateThreshold.setDate(dateThreshold.getDate() - 7);
+  } else if (filter === "month") {
+    dateThreshold = new Date();
+    dateThreshold.setMonth(dateThreshold.getMonth() - 1);
+  }
+
   const keywords = await prisma.keywordUsage.groupBy({
     by: ['keyword'],
-    where: {
-      createdAt: {
-        gte: oneWeekAgo,
-      },
-    },
+    where: dateThreshold
+      ? { createdAt: { gte: dateThreshold } }
+      : undefined,
     _count: {
       keyword: true,
     },
@@ -42,3 +49,4 @@ export const getTopKeywords = async (limit: number = 10) => {
     usageCount: _count.keyword,
   }));
 };
+
