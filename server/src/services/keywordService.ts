@@ -6,6 +6,7 @@ import { fetchCached } from "./cacheService";
 import { fetchSearchResults } from "./youtubeApiService";
 import { recordKeywordUsage, getTopKeywords } from "./keywordStatsService";
 import { Request } from "express";
+import { incrementFeatureUsage } from "./statsService"; // adjust the path if needed
 
 export const analyzeKeyword = async (keyword: string) => {
   // Track keyword usage
@@ -47,6 +48,9 @@ export const analyzeKeyword = async (keyword: string) => {
       opportunityScore: video.opportunityScore || null,
     };
   });
+
+  // ✅ Track feature usage
+  await incrementFeatureUsage("keyword_analysis");
 
   return {
     keyword,

@@ -36,6 +36,8 @@ model User {
   SentimentalAnalysis   SentimentalAnalysis[]
   titleGenerations      TitleGeneration[]     // Add this line
   keywordAnalyses      KeywordAnalysis[]
+ 
+
 }
 model KeywordAnalysis {
   id          String    @id @default(uuid())
@@ -82,6 +84,15 @@ model GeneratedTitle {
   isFavorite        Boolean   @default(false)
 }
 
+model FeatureUsage {
+  id         String   @id @default(cuid())
+  feature    String
+  count      Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([feature])
+}
 
 model Credit {
   id        String   @id @default(uuid())
@@ -111,6 +122,7 @@ model Policy {
   createdAt DateTime   @default(now())
   type      PolicyType
 }
+
 
 model SentimentalAnalysis {
   id        String   @id @default(uuid())
@@ -183,6 +195,7 @@ model Video {
   categoryId       String
   category         Category @relation(fields: [categoryId], references: [categoryId])
 }
+
 
 model YT_KEYS {
   id        String   @id @default(uuid())

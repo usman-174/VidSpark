@@ -54,4 +54,10 @@ export interface DomainStats {
     domain: string;
     count: number;
   }
-  
+  export interface FeatureUsageStats {
+  success: boolean;
+  usage: {
+    keyword_analysis: number;
+    title_generation: number;
+  };
+}

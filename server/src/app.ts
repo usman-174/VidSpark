@@ -57,6 +57,7 @@ app.use("/api/policies", setUser, restrictTo(["ADMIN"]), policyRoutes);
 app.use("/api/keywords", setUser, restrictTo(["USER"]), keywordRoutes);
 
 
+
 app.listen(PORT, () => {
   console.log("Environment:", process.env.NODE_ENV);
   console.log(`Server running on http://localhost:${PORT}\n`);

@@ -1,6 +1,6 @@
 // titleService.ts - Enhanced YouTube Title Generator with Advanced Prompt Engineering
 import axios from "axios";
-
+import { incrementFeatureUsage } from "./statsService";
 // Define response types
 interface TitleWithKeywords {
   title: string;
@@ -104,10 +104,17 @@ async function generateTitlesWithOllama(
     console.log("📝 Ollama raw response:", content);
 
     const result = extractTitlesFromResponse(content, prompt);
-    return {
+
+    const finalResult = {
       ...result,
       provider: "ollama",
     };
+
+    if (finalResult.success) {
+      await incrementFeatureUsage("title_generation"); // ✅ Log usage
+    }
+
+    return finalResult;
   } catch (error: any) {
     console.error("❌ Ollama service error:", error.message);
     throw error;
@@ -126,8 +133,7 @@ async function generateTitlesWithOpenRouter(
       "https://openrouter.ai/api/v1/chat/completions";
     console.log(`🌐 Using OpenRouter with model: ${model}`);
 
-    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator. You must respond with exactly 5 compelling YouTube titles and their associated keywords in JSON format. Each title must be 60-100 characters long and optimized for maximum clicks and search visibility. Use psychological triggers, power words, and proven YouTube title patterns. For each title, provide 5-7 relevant SEO keywords. Respond EXACTLY in this format: {"items":[{"title":"Title 1","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"]},{"title":"Title 2","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"]}]}. Do not include code blocks, backticks, or any other text outside the JSON object.`;
-
+    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator...`;
     const userMessage = getYouTubePromptTemplate(prompt);
 
     const response = await axios.post(
@@ -135,14 +141,8 @@ async function generateTitlesWithOpenRouter(
       {
         model,
         messages: [
-          {
-            role: "system",
-            content: systemMessage,
-          },
-          {
-            role: "user",
-            content: userMessage,
-          },
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
         ],
         max_tokens: maxLength,
         temperature: 0.8,
@@ -158,7 +158,7 @@ async function generateTitlesWithOpenRouter(
           "HTTP-Referer": process.env.SITE_URL || "http://localhost:3000",
           "X-Title": "YouTube Title Generator Pro",
         },
-        timeout: 30000, // 30 second timeout
+        timeout: 30000,
       }
     );
 
@@ -167,10 +167,17 @@ async function generateTitlesWithOpenRouter(
     console.log("📝 OpenRouter raw content:", content);
 
     const result = extractTitlesFromResponse(content, prompt);
-    return {
+
+    const finalResult = {
       ...result,
       provider: "openrouter",
     };
+
+    if (finalResult.success) {
+      await incrementFeatureUsage("title_generation"); // ✅ Log usage
+    }
+
+    return finalResult;
   } catch (error: any) {
     console.error("❌ OpenRouter service error:", error.message);
     if (error.response) {
