@@ -1,6 +1,6 @@
-// titleService.ts - Enhanced with keyword generation
+// titleService.ts - Enhanced YouTube Title Generator with Advanced Prompt Engineering
 import axios from "axios";
-
+import { incrementFeatureUsage } from "./statsService";
 // Define response types
 interface TitleWithKeywords {
   title: string;
@@ -9,8 +9,7 @@ interface TitleWithKeywords {
 
 interface TitleGenerationResponse {
   success: boolean;
-  titles: string[] | TitleWithKeywords[];
-  keywords?: string[];
+  titles: TitleWithKeywords[];
   provider?: string;
   error?: string;
   generationId?: string;
@@ -20,432 +19,437 @@ interface TitleGenerationOptions {
   prompt: string;
   maxLength?: number;
   model?: string;
-  includeKeywords?: boolean;
 }
+
+// Enhanced YouTube-specific prompt template
+const getYouTubePromptTemplate = (prompt: string): string => {
+  const currentYear = new Date().getFullYear();
+
+  return `You are an expert YouTube SEO specialist and viral content creator with deep knowledge of YouTube's algorithm and viewer psychology. Generate 5 highly engaging, click-worthy YouTube video titles that will maximize both search visibility and click-through rates.
+
+CRITICAL REQUIREMENTS:
+- Each title must be 60-100 characters long (optimal for YouTube display)
+- Use proven psychological triggers and power words
+- Include specific numbers, years, or timeframes when relevant
+- Create curiosity gaps that compel viewers to click
+- Optimize for YouTube's search algorithm and recommendation system
+- Feel fresh, current, and relevant for ${currentYear}
+
+PSYCHOLOGICAL TRIGGERS TO INCORPORATE:
+🔥 Urgency: "Before It's Too Late", "Right Now", "Today", "Immediately"
+🤔 Curiosity: "Secret", "Hidden", "What Nobody Tells You", "Shocking Truth"
+👑 Authority: "Expert", "Pro", "Advanced", "Ultimate", "Master"
+👥 Social Proof: "Everyone", "Most People", "Millions", "Thousands"
+💪 Benefit-driven: "How to", "Ways to", "Steps to", "Proven Method"
+⚡ Controversy: "Why X is Wrong", "The Truth About", "Exposed"
+🎯 Exclusivity: "Only", "Exclusive", "Private", "Insider"
+📈 Results: "That Actually Work", "Proven", "Guaranteed", "Results"
+
+PROVEN YOUTUBE TITLE PATTERNS (USE THESE):
+✅ "How I [Achieved Specific Result] in [Timeframe] (Exact Method)"
+✅ "The [Number] [Thing] That [Positive Outcome] (Most People Miss This)"
+✅ "[Number] [Thing] You Should Never [Action] (Do This Instead)"
+✅ "I Tried [Thing/Method] for [Time Period] - Here's What Happened"
+✅ "Why [Popular Belief] is Actually Wrong (The Real Truth)"
+✅ "[Number] Signs You're [Situation] (and How to Fix It Fast)"
+✅ "What [Expert/Successful Person] Won't Tell You About [Topic]"
+✅ "[Thing] That Changed My [Life/Business] in [Timeframe]"
+✅ "The Secret [Method/Strategy] [Successful People] Don't Want You to Know"
+✅ "[Number] Minute [Action] That [Amazing Result]"
+
+CONTENT ANALYSIS:
+Topic/Content: "${prompt}"
+
+KEYWORD STRATEGY:
+For each title, provide 5-7 highly relevant SEO keywords that include:
+- Primary topic keywords
+- Long-tail search phrases
+- Trending related terms
+- Action-oriented keywords
+- Year/time-specific keywords
+
+OUTPUT FORMAT:
+Respond EXACTLY in this JSON format (no code blocks, no extra text):
+{"items":[{"title":"Your compelling 60-100 character YouTube title here","keywords":["primary-keyword","long-tail-phrase","trending-term","action-keyword","time-specific","related-topic","search-phrase"]},{"title":"Another engaging title","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"]}]}
+
+Generate 5 titles that would make viewers immediately stop scrolling and click to watch the video.`;
+};
 
 // Ollama service function
 async function generateTitlesWithOllama(
-  prompt: string, 
-  maxLength: number = 400,
-  includeKeywords: boolean = false
+  prompt: string,
+  maxLength: number = 500
 ): Promise<TitleGenerationResponse> {
   try {
     const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
     const ollamaModel = process.env.OLLAMA_MODEL || "qwen3:4b";
-    
-    console.log(`Using Ollama with model ${ollamaModel}`);
-    
-    // Enhanced prompt for title and keyword generation
-    const promptTemplate = includeKeywords ? 
-      `You are a helpful assistant that generates SEO optimized titles and keywords for content. Generate 5 concise, engaging, and relevant titles for the following content. Each title should be between 50-65 characters long. For each title, also provide 3-5 related SEO keywords.
 
-Format your response as a JSON object with 'items' array containing 5 objects, each with 'title' and 'keywords' properties. The 'keywords' property should be an array of strings.
+    console.log(`🤖 Using Ollama with model ${ollamaModel}`);
 
-Response format example: {"items":[{"title":"Title 1","keywords":["keyword1","keyword2","keyword3"]},{"title":"Title 2","keywords":["keyword1","keyword2","keyword3"]},...]}
+    const promptTemplate = getYouTubePromptTemplate(prompt);
 
-Content to generate titles for: ${prompt}
-
-Remember to respond ONLY with the JSON object, no additional explanations or text.` 
-      : 
-      `You are a helpful assistant that generates SEO optimized titles for content. Generate 5 concise, engaging, and relevant titles for the following content. Each title should be between 50-65 characters long. Format your response as a JSON object with a 'titles' array containing exactly 5 string elements. Response format example: {"titles":["Title 1","Title 2","Title 3","Title 4","Title 5"]}
-
-Content to generate titles for: ${prompt}
-
-Remember to respond ONLY with the JSON object, no additional explanations or text.`;
-    
     const response = await axios.post(`${ollamaUrl}/api/generate`, {
       model: ollamaModel,
       prompt: promptTemplate,
       stream: false,
       options: {
-        temperature: 0.7,
+        temperature: 0.8,
         top_p: 0.9,
-        max_tokens: maxLength
-      }
+        max_tokens: maxLength,
+        stop: ["Human:", "Assistant:", "\n\nHuman:", "\n\nAssistant:"],
+      },
     });
-    
-    // Ollama response is in response.data.response
+
     const content = response.data.response;
-    
-    // Try to extract JSON
-    const result = extractTitlesFromResponse(content, prompt, includeKeywords);
-    return {
+    console.log("📝 Ollama raw response:", content);
+
+    const result = extractTitlesFromResponse(content, prompt);
+
+    const finalResult = {
       ...result,
-      provider: "ollama"
+      provider: "ollama",
     };
-  } catch (error) {
-    console.error("Error with Ollama service:", error.message);
-    // Re-throw the error to be caught by the main function
+
+    if (finalResult.success) {
+      await incrementFeatureUsage("title_generation"); // ✅ Log usage
+    }
+
+    return finalResult;
+  } catch (error: any) {
+    console.error("❌ Ollama service error:", error.message);
     throw error;
   }
 }
 
 // OpenRouter service function
 async function generateTitlesWithOpenRouter(
-  prompt: string, 
-  maxLength: number = 400, 
-  model: string = "deepseek/deepseek-chat-v3-0324:free",
-  includeKeywords: boolean = false
+  prompt: string,
+  maxLength: number = 500,
+  model: string = "deepseek/deepseek-chat-v3-0324:free"
 ): Promise<TitleGenerationResponse> {
   try {
-    const url = process.env.OPENROUTER_URL || "https://openrouter.ai/api/v1/chat/completions";
-    console.log("Using OpenRouter URL with model:", model);
+    const url =
+      process.env.OPENROUTER_URL ||
+      "https://openrouter.ai/api/v1/chat/completions";
+    console.log(`🌐 Using OpenRouter with model: ${model}`);
 
-    // System message depending on whether keywords are needed
-    const systemMessage = includeKeywords ?
-      'You are a helpful assistant that generates SEO optimized titles and keywords for content. You must respond with 5 titles and their associated keywords in JSON format. Each title must be concise, engaging, and relevant to the provided content. Each title should be between 50-65 characters long. For each title, provide 3-5 relevant SEO keywords. Respond EXACTLY in this format: {"items":[{"title":"Title 1","keywords":["keyword1","keyword2","keyword3"]},{"title":"Title 2","keywords":["keyword1","keyword2"]}]}. Do not include code blocks, backticks, or any other text outside the JSON object.' :
-      'You are a helpful assistant that generates SEO optimized titles for content. You must respond with 5 titles in JSON format with a \'titles\' array field. Each title must be concise, engaging, and relevant to the provided content. Each title should be more than 50 and less than 65 characters long. Respond EXACTLY in this format: {"titles":["Title 1","Title 2","Title 3","Title 4","Title 5"]}. Do not include code blocks, backticks, or any other text outside the JSON object.';
-
-    // User message depending on whether keywords are needed
-    const userMessage = includeKeywords ?
-      `Generate 5 concise SEO-optimized titles with 3-5 keywords for each title for the following content or requirements: ${prompt}. Respond ONLY with a JSON object containing an 'items' array with objects having 'title' and 'keywords' properties.` :
-      `Generate 5 concise SEO-optimized titles for the following content or requirements: ${prompt}. Respond ONLY with a JSON object containing a 'titles' array with exactly 5 string elements.`;
+    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator...`;
+    const userMessage = getYouTubePromptTemplate(prompt);
 
     const response = await axios.post(
       url,
       {
         model,
         messages: [
-          {
-            role: "system",
-            content: systemMessage,
-          },
-          {
-            role: "user",
-            content: userMessage,
-          },
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
         ],
         max_tokens: maxLength,
-        temperature: 0.7,
-        response_format: { type: "json_object" }, // Ensure JSON format response
+        temperature: 0.8,
+        top_p: 0.9,
+        frequency_penalty: 0.3,
+        presence_penalty: 0.3,
+        response_format: { type: "json_object" },
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "Title Generator",
+          "HTTP-Referer": process.env.SITE_URL || "http://localhost:3000",
+          "X-Title": "YouTube Title Generator Pro",
         },
+        timeout: 30000,
       }
     );
 
-    // Log full response for debugging
-    console.log("OpenRouter response:", JSON.stringify(response.data, null, 2));
-
-    // Get response content
+    console.log("📊 OpenRouter response status:", response.status);
     const content = response.data.choices[0].message.content.trim();
-    console.log("Raw content from OpenRouter:", content);
-    
-    // Process the content to extract titles
-    const result = extractTitlesFromResponse(content, prompt, includeKeywords);
-    return {
+    console.log("📝 OpenRouter raw content:", content);
+
+    const result = extractTitlesFromResponse(content, prompt);
+
+    const finalResult = {
       ...result,
-      provider: "openrouter"
+      provider: "openrouter",
     };
-  } catch (error) {
-    console.error("Error with OpenRouter service:", error.message);
+
+    if (finalResult.success) {
+      await incrementFeatureUsage("title_generation"); // ✅ Log usage
+    }
+
+    return finalResult;
+  } catch (error: any) {
+    console.error("❌ OpenRouter service error:", error.message);
     if (error.response) {
-      console.error("OpenRouter error response:", JSON.stringify(error.response.data, null, 2));
+      console.error("🔍 OpenRouter error details:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+      });
     }
     throw error;
   }
 }
 
-// Shared helper function to extract titles from any response
-function extractTitlesFromResponse(content: string, prompt: string, includeKeywords: boolean = false): TitleGenerationResponse {
+// Enhanced helper function to extract titles from API responses
+function extractTitlesFromResponse(
+  content: string,
+  prompt: string
+): TitleGenerationResponse {
   try {
-    console.log("Attempting to parse content:", content);
-    
-    // Try to parse JSON from the response
-    // First, clean up any code block formatting or other non-JSON content
-    let jsonContent = content;
+    console.log("🔍 Parsing content:", content.substring(0, 200) + "...");
+
+    // Clean up the response content
+    let jsonContent = content.trim();
 
     // Remove code block markers if they exist
     if (jsonContent.includes("```")) {
-      // Extract content between code block markers
       const codeMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (codeMatch && codeMatch[1]) {
         jsonContent = codeMatch[1].trim();
       } else {
-        // If we can't extract from code blocks, remove all code block markers
         jsonContent = jsonContent.replace(/```(?:json)?|```/g, "").trim();
       }
     }
 
-    // Find any JSON-like structure in the text
+    // Extract JSON-like structure
     const jsonMatch = jsonContent.match(/{[\s\S]*}/);
     if (jsonMatch) {
       jsonContent = jsonMatch[0];
     }
 
-    console.log("Cleaned JSON content:", jsonContent);
+    // Clean up common formatting issues
+    jsonContent = jsonContent
+      .replace(/,\s*}/g, "}") // Remove trailing commas
+      .replace(/,\s*]/g, "]") // Remove trailing commas in arrays
+      .replace(/[\u201C\u201D]/g, '"') // Replace smart quotes
+      .replace(/[\u2018\u2019]/g, "'"); // Replace smart single quotes
 
-    // Parse the JSON
+    console.log("🧹 Cleaned JSON content:", jsonContent);
+
     const parsedData = JSON.parse(jsonContent);
-    console.log("Parsed data:", JSON.stringify(parsedData, null, 2));
-
-    if (includeKeywords) {
-      // Check for items array with title and keywords
-      if (
-        parsedData.items &&
-        Array.isArray(parsedData.items) &&
-        parsedData.items.length > 0
-      ) {
-        // Extract and validate each title with keywords
-        const validItems = parsedData.items
-          .filter(
-            (item: any) => 
-              typeof item === "object" && 
-              typeof item.title === "string" && 
-              item.title.trim().length > 0 &&
-              Array.isArray(item.keywords)
-          )
-          .slice(0, 5);
-
-        // If we have valid items, return them
-        if (validItems.length > 0) {
-          // Fill in with generic titles if needed
-          const finalItems = [...validItems];
-          while (finalItems.length < 5) {
-            finalItems.push({
-              title: `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`,
-              keywords: ["seo", "optimized", "content"]
-            });
-          }
-
-          return {
-            success: true,
-            titles: finalItems,
-          };
-        }
-      }
-    } else {
-      // Check if we have a titles array
-      if (
-        parsedData.titles &&
-        Array.isArray(parsedData.titles) &&
-        parsedData.titles.length > 0
-      ) {
-        // Extract and validate each title
-        const validTitles = parsedData.titles
-          .filter(
-            (title: string) => typeof title === "string" && title.trim().length > 0
-          )
-          .slice(0, 5);
-
-        // If we have valid titles, return them
-        if (validTitles.length > 0) {
-          // Fill in with generic titles if needed
-          const finalTitles = [...validTitles];
-          while (finalTitles.length < 5) {
-            finalTitles.push(
-              `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`
-            );
-          }
-
-          return {
-            success: true,
-            titles: finalTitles,
-          };
-        }
-      }
-    }
-
-    // If we get here, the JSON didn't have a valid titles array or items array
-    // Let's attempt to extract directly from the structure if possible
-    if (!includeKeywords && Array.isArray(parsedData)) {
-      // The response might be a direct array of titles
-      const validTitles = parsedData
-        .filter((item: any) => typeof item === "string" && item.trim().length > 0)
-        .slice(0, 5);
-        
-      if (validTitles.length > 0) {
-        const finalTitles = [...validTitles];
-        while (finalTitles.length < 5) {
-          finalTitles.push(`SEO-Optimized Title for: ${prompt.substring(0, 30)}...`);
-        }
-        
-        return {
-          success: true,
-          titles: finalTitles,
-        };
-      }
-    }
-
-    throw new Error("Response did not contain a valid titles array or items array");
-  } catch (parseError) {
     console.log(
-      "JSON parsing failed, attempting to extract titles from text:",
-      parseError.message
+      "✅ Parsed data structure:",
+      JSON.stringify(parsedData, null, 2)
     );
 
-    if (includeKeywords) {
-      // Create fallback titles with keywords
-      return {
-        success: true,
-        titles: [
-          {
-            title: `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`,
-            keywords: ["seo", "optimized", "content"]
-          },
-          {
-            title: `Top Guide to ${prompt.substring(0, 30)}...`,
-            keywords: ["guide", "tutorial", "top"]
-          },
-          {
-            title: `Essential ${prompt.substring(0, 30)}... Tips`,
-            keywords: ["essential", "tips", "strategies"]
-          },
-          {
-            title: `Complete ${prompt.substring(0, 30)}... Guide`,
-            keywords: ["complete", "guide", "comprehensive"]
-          },
-          {
-            title: `Everything About ${prompt.substring(0, 30)}...`,
-            keywords: ["everything", "complete", "detailed"]
-          },
-        ],
-      };
-    } else {
-      // First try: Look for numbered list (1. Title one 2. Title two)
-      const numberedListRegex = /\d+\.\s*([^.!?]+[.!?]?)/g;
-      const numberedMatches = [...content.matchAll(numberedListRegex)];
+    // Validate and extract items
+    if (
+      parsedData.items &&
+      Array.isArray(parsedData.items) &&
+      parsedData.items.length > 0
+    ) {
+      const validItems = parsedData.items
+        .filter((item: any) => {
+          const isValid =
+            typeof item === "object" &&
+            typeof item.title === "string" &&
+            item.title.trim().length >= 20 &&
+            item.title.trim().length <= 120 &&
+            Array.isArray(item.keywords) &&
+            item.keywords.length > 0;
 
-      if (numberedMatches.length >= 3) {
-        const extractedTitles = numberedMatches
-          .map((match) => match[1].trim())
-          .filter((title) => title.length > 0 && title.length <= 100)
-          .slice(0, 5);
-
-        if (extractedTitles.length > 0) {
-          // Fill in with generic titles if needed
-          while (extractedTitles.length < 5) {
-            extractedTitles.push(
-              `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`
-            );
+          if (!isValid) {
+            console.log("⚠️ Invalid item filtered out:", item);
           }
+          return isValid;
+        })
+        .slice(0, 5)
+        .map((item: any) => ({
+          title: item.title.trim(),
+          keywords: item.keywords
+            .filter((kw: any) => typeof kw === "string" && kw.trim().length > 0)
+            .slice(0, 7),
+        }));
 
-          return {
-            success: true,
-            titles: extractedTitles,
-          };
+      if (validItems.length > 0) {
+        // Fill remaining slots with enhanced fallback titles if needed
+        const finalItems = [...validItems];
+        const fallbackTitles = generateEnhancedFallbackTitles(prompt);
+
+        while (finalItems.length < 5) {
+          const fallbackIndex = finalItems.length - validItems.length;
+          if (fallbackIndex < fallbackTitles.length) {
+            finalItems.push(fallbackTitles[fallbackIndex]);
+          } else {
+            break;
+          }
         }
-      }
 
-      // Second try: Split by newlines and extract reasonable-looking titles
-      const lines = content
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(
-          (line) =>
-            line.length > 10 &&
-            line.length <= 100 &&
-            !line.startsWith("```") &&
-            !line.startsWith("{") &&
-            !line.includes("titles") &&
-            !line.includes('":"') &&
-            !line.startsWith("[") &&
-            !line.startsWith("]")
+        console.log(
+          `✅ Successfully extracted ${finalItems.length} valid titles`
         );
-
-      if (lines.length > 0) {
-        const extractedTitles = lines
-          .map((line) => line.replace(/^\d+\.\s*|\*\s*|-\s*|"/g, "").trim())
-          .filter((title) => title.length > 0)
-          .slice(0, 5);
-
-        // Fill in with generic titles if needed
-        while (extractedTitles.length < 5) {
-          extractedTitles.push(
-            `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`
-          );
-        }
-
         return {
           success: true,
-          titles: extractedTitles,
+          titles: finalItems,
         };
       }
-
-      // Last resort: Generate generic titles
-      return {
-        success: true,
-        titles: [
-          `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`,
-          `Top Guide to ${prompt.substring(0, 30)}...`,
-          `Essential ${prompt.substring(0, 30)}... Tips`,
-          `Complete ${prompt.substring(0, 30)}... Guide`,
-          `Everything About ${prompt.substring(0, 30)}...`,
-        ],
-      };
     }
+
+    // Try alternative parsing methods
+    console.log("⚠️ Standard parsing failed, trying alternative methods...");
+
+    // Check if it's a direct array of items
+    if (Array.isArray(parsedData)) {
+      const validItems = parsedData
+        .filter(
+          (item: any) =>
+            typeof item === "object" &&
+            typeof item.title === "string" &&
+            Array.isArray(item.keywords)
+        )
+        .slice(0, 5);
+
+      if (validItems.length > 0) {
+        console.log(
+          `✅ Extracted ${validItems.length} titles from direct array`
+        );
+        return {
+          success: true,
+          titles: validItems,
+        };
+      }
+    }
+
+    throw new Error("No valid title structure found in response");
+  } catch (parseError: any) {
+    console.log("❌ JSON parsing failed:", parseError.message);
+    console.log("🔄 Generating enhanced fallback titles");
+
+    return {
+      success: true,
+      titles: generateEnhancedFallbackTitles(prompt),
+    };
   }
 }
 
-// Main function with automatic fallback
+// Generate enhanced YouTube-style fallback titles
+function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
+  const currentYear = new Date().getFullYear();
+  const topicShort = prompt.substring(0, 30).trim();
+  const topicKeyword = topicShort
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
+
+  console.log(`🎯 Generating fallback titles for topic: "${topicShort}"`);
+
+  return [
+    {
+      title: `How I Mastered ${topicShort} in ${currentYear} (Complete Guide)`,
+      keywords: [
+        "how to",
+        topicKeyword,
+        "tutorial",
+        "guide",
+        "step by step",
+        `${currentYear}`,
+        "complete",
+      ],
+    },
+    {
+      title: `5 ${topicShort} Secrets That Actually Work (Proven Results)`,
+      keywords: [
+        "secrets",
+        topicKeyword,
+        "tips",
+        "proven",
+        "results",
+        "strategies",
+        "that work",
+      ],
+    },
+    {
+      title: `Why Everyone Gets ${topicShort} Wrong (The Real Truth)`,
+      keywords: [
+        "truth about",
+        topicKeyword,
+        "mistakes",
+        "wrong way",
+        "reality",
+        "exposed",
+        "facts",
+      ],
+    },
+    {
+      title: `I Tried ${topicShort} for 30 Days - Here's What Happened`,
+      keywords: [
+        "experiment",
+        topicKeyword,
+        "30 days",
+        "results",
+        "challenge",
+        "review",
+        "what happened",
+      ],
+    },
+    {
+      title: `Ultimate ${topicShort} Guide Nobody Talks About (${currentYear})`,
+      keywords: [
+        "ultimate guide",
+        topicKeyword,
+        "advanced",
+        "comprehensive",
+        `${currentYear}`,
+        "expert",
+        "secret",
+      ],
+    },
+  ];
+}
+
+// Main title generation function with intelligent fallback
 export async function generateTitle({
   prompt,
-  maxLength = 400,
+  maxLength = 500,
   model = "deepseek/deepseek-chat-v3-0324:free",
-  includeKeywords = false
 }: TitleGenerationOptions): Promise<TitleGenerationResponse> {
+  console.log(
+    `🚀 Starting title generation for: "${prompt.substring(0, 50)}..."`
+  );
+
+  // Validate input
+  if (!prompt || prompt.trim().length < 3) {
+    console.log("❌ Invalid prompt provided");
+    return {
+      success: false,
+      titles: generateEnhancedFallbackTitles("general content"),
+      provider: "fallback",
+      error: "Invalid prompt provided",
+    };
+  }
+
   // Try Ollama first
   try {
-    // REMOVE THE SIMULATED ERROR
-    // throw new Error("Simulated error for testing fallback");
-    return await generateTitlesWithOllama(prompt, maxLength, includeKeywords);
-  } catch (ollamaError) {
-    console.log("Ollama failed, falling back to OpenRouter:", ollamaError.message);
-    
-    // If Ollama fails, try OpenRouter
+    console.log("🔄 Attempting Ollama generation...");
+    throw new Error("Simulated Ollama failure"); // Simulate failure for testing
+    const result = await generateTitlesWithOllama(prompt.trim(), maxLength);
+    console.log("✅ Ollama generation successful");
+    return result;
+  } catch (ollamaError: any) {
+    console.log(`⚠️ Ollama failed: ${ollamaError.message}`);
+    console.log("🔄 Falling back to OpenRouter...");
+
+    // Fallback to OpenRouter
     try {
-      return await generateTitlesWithOpenRouter(prompt, maxLength, model, includeKeywords);
-    } catch (openRouterError) {
-      console.error("Both Ollama and OpenRouter failed:", openRouterError.message);
-      
-      // If both fail, return a generic response with or without keywords
-      if (includeKeywords) {
-        return {
-          success: false,
-          titles: [
-            {
-              title: `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`,
-              keywords: ["seo", "optimized", "content"]
-            },
-            {
-              title: `Top Guide to ${prompt.substring(0, 30)}...`,
-              keywords: ["guide", "tutorial", "top"]
-            },
-            {
-              title: `Essential ${prompt.substring(0, 30)}... Tips`,
-              keywords: ["essential", "tips", "strategies"]
-            },
-            {
-              title: `Complete ${prompt.substring(0, 30)}... Guide`,
-              keywords: ["complete", "guide", "comprehensive"]
-            },
-            {
-              title: `Everything About ${prompt.substring(0, 30)}...`,
-              keywords: ["everything", "complete", "detailed"]
-            },
-          ],
-          provider: "fallback",
-          error: "Both local and remote title generation services failed"
-        };
-      } else {
-        return {
-          success: false,
-          titles: [
-            `SEO-Optimized Title for: ${prompt.substring(0, 30)}...`,
-            `Top Guide to ${prompt.substring(0, 30)}...`,
-            `Essential ${prompt.substring(0, 30)}... Tips`,
-            `Complete ${prompt.substring(0, 30)}... Guide`,
-            `Everything About ${prompt.substring(0, 30)}...`,
-          ],
-          provider: "fallback",
-          error: "Both local and remote title generation services failed"
-        };
-      }
+      const result = await generateTitlesWithOpenRouter(
+        prompt.trim(),
+        maxLength,
+        model
+      );
+      console.log("✅ OpenRouter generation successful");
+      return result;
+    } catch (openRouterError: any) {
+      console.error(`❌ OpenRouter also failed: ${openRouterError.message}`);
+      console.log("🔄 Using enhanced fallback titles");
+
+      // Both services failed - return enhanced fallback
+      return {
+        success: false,
+        titles: generateEnhancedFallbackTitles(prompt),
+        provider: "fallback",
+        error: `Both AI services failed. Ollama: ${ollamaError.message}. OpenRouter: ${openRouterError.message}`,
+      };
     }
   }
 }

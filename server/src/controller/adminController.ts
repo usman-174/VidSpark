@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { PrismaClient, PolicyType } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -50,33 +50,86 @@ const withCache = async (key: string, getData: () => Promise<any>) => {
 export const getAdminStats = async (req: Request, res: Response) => {
   try {
     const stats = await withCache("admin_stats", async () => {
-      const [totalUsers, activeAdminUsers, newUsersToday, usersWithChildren] =
-        await Promise.all([
-          prisma.user.count(),
-          prisma.user.count({
-            where: {
-              role: "ADMIN",
+      const [
+        totalUsers,
+        activeAdminUsers,
+        newUsersToday,
+        usersWithChildren,
+        totalKeywordAnalyses,
+        totalTitleGenerations,
+        keywordUsageStats,
+        titleGenerationStats,
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({
+          where: {
+            role: "ADMIN",
+          },
+        }),
+        prisma.user.count({
+          where: {
+            createdAt: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
             },
-          }),
-          prisma.user.count({
-            where: {
-              createdAt: {
-                gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              },
+          },
+        }),
+        prisma.user.count({
+          where: {
+            children: {
+              some: {},
             },
-          }),
-          prisma.user.count({
-            where: {
-              children: {
-                some: {},
-              },
-            },
-          }),
-        ]);
+          },
+        }),
+        prisma.keywordAnalysis.count(),
+        prisma.titleGeneration.count(),
+        // Get keyword usage stats for the last 30 days
+        prisma.$queryRaw`
+          SELECT 
+            DATE_TRUNC('day', "createdAt") as date,
+            COUNT(*)::integer as count
+          FROM "KeywordAnalysis"
+          WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+          GROUP BY date
+          ORDER BY date ASC
+        `,
+        // Get title generation stats for the last 30 days
+        prisma.$queryRaw`
+          SELECT 
+            DATE_TRUNC('day', "createdAt") as date,
+            COUNT(*)::integer as count
+          FROM "TitleGeneration"
+          WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+          GROUP BY date
+          ORDER BY date ASC
+        `,
+      ]);
 
       const userGrowthRate = totalUsers
         ? (newUsersToday / totalUsers) * 100
         : 0;
+
+      // Process keyword usage data for chart
+      const keywordUsageData = (keywordUsageStats as any[]).map((item) => ({
+        date: item.date.toISOString().split('T')[0],
+        count: item.count,
+      }));
+
+      // Process title generation data for chart
+      const titleGenerationData = (titleGenerationStats as any[]).map((item) => ({
+        date: item.date.toISOString().split('T')[0],
+        count: item.count,
+      }));
+
+      // Get top 5 most used keywords
+      const popularKeywords = await prisma.$queryRaw`
+        SELECT 
+          UNNEST(keywords) as keyword,
+          COUNT(*)::integer as usage_count
+        FROM "KeywordAnalysis"
+        GROUP BY keyword
+        ORDER BY usage_count DESC
+        LIMIT 5
+      `;
 
       return {
         totalUsers,
@@ -84,12 +137,28 @@ export const getAdminStats = async (req: Request, res: Response) => {
         newUsersToday,
         usersWithChildren,
         userGrowthRate: Number(userGrowthRate.toFixed(2)),
+        contentGenerationStats: {
+          totalKeywordAnalyses,
+          totalTitleGenerations,
+          keywordUsageTrend: keywordUsageData,
+          titleGenerationTrend: titleGenerationData,
+          popularKeywords: (popularKeywords as any[]).map(k => ({
+            keyword: k.keyword,
+            count: k.usage_count
+          })),
+          averageTitlesPerUser: totalUsers 
+            ? Number((totalTitleGenerations / totalUsers).toFixed(2)) 
+            : 0,
+          averageKeywordsPerUser: totalUsers 
+            ? Number((totalKeywordAnalyses / totalUsers).toFixed(2)) 
+            : 0,
+        }
       };
     });
 
     res.status(200).json(stats);
-  } catch (error : any) {
-    handleError(error, res, error.message||"Error fetching admin stats");
+  } catch (error: any) {
+    handleError(error, res, error.message || "Error fetching admin stats");
   }
 };
 
@@ -216,7 +285,7 @@ export const getUserGrowthStats = async (req: Request, res: Response) => {
         WITH RECURSIVE dates AS (
           SELECT CAST(CURRENT_DATE - (${days} || ' days')::INTERVAL AS DATE) as date
           UNION ALL
-          SELECT CAST(date + '1 day'::INTERVAL AS DATE)
+          SELECT CAST(date + '1 day'::INTERVAL AS DATE) AS date
           FROM dates
           WHERE date < CURRENT_DATE
         )
@@ -300,5 +369,46 @@ export const getUserDomainStats = async (req: Request, res: Response) => {
     res.status(200).json(stats);
   } catch (error) {
     handleError(error, res, "Error fetching user domain stats");
+  }
+};
+export const getFeatureUsageStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Fetch counts from the featureUsage table for the two features
+    const usageRows = await prisma.featureUsage.findMany({
+      where: {
+        feature: {
+          in: ["keyword_analysis", "title_generation"],
+        },
+      },
+      orderBy: { feature: "asc" },
+    });
+
+    // Transform into a simple object
+    const result: Record<string, number> = {};
+    for (const row of usageRows) {
+      result[row.feature] = row.count;
+    }
+
+    // Ensure both keys exist, default to 0 if missing
+    if (!result["keyword_analysis"]) {
+      result["keyword_analysis"] = 0;
+    }
+    if (!result["title_generation"]) {
+      result["title_generation"] = 0;
+    }
+
+    // **Note: do not return res.json(...)** — just call it
+    res.status(200).json({ success: true, usage: result });
+  } catch (error) {
+    console.error("❌ Error fetching feature usage stats:", error);
+    // Call next(error) or send a response without “return”
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feature usage stats",
+    });
   }
 };

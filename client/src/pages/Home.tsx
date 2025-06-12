@@ -91,6 +91,10 @@ const Home = () => {
               <Button asChild>
                 <Link to="/sentimental-analysis">Sentiment Analysis</Link>
               </Button>
+            <Button asChild>
+  <Link to="/keyword-analysis">Keyword Analysis</Link>
+</Button>
+
               <Button asChild>
                 <Link to="/packages">View Packages</Link>
               </Button>

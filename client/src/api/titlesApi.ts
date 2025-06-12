@@ -13,7 +13,6 @@ export interface SavedTitle {
   title: string;
   keywords: string[];
   isFavorite: boolean;
-  // Include the generation info nested inside the title response
   generation?: {
     prompt: string;
     createdAt: string;
@@ -41,7 +40,7 @@ export interface PaginatedGenerationsResponse {
   };
 }
 
-// Extend the current options interface with the new includeKeywords parameter
+// Title generation options
 export interface TitleGenerationOptions {
   prompt: string;
   maxLength?: number;
@@ -50,7 +49,7 @@ export interface TitleGenerationOptions {
   saveTitles?: boolean;
 }
 
-// Update the response interface to handle either string arrays or TitleWithKeywords arrays
+// Title generation response
 export interface TitleGenerationResponse {
   success: boolean;
   titles: string[] | TitleWithKeywords[];
@@ -59,80 +58,96 @@ export interface TitleGenerationResponse {
   generationId?: string;
 }
 
+// Response for getting generation by ID
+export interface GenerationByIdResponse {
+  success: boolean;
+  generation: TitleGeneration;
+}
+
+// Response for toggling favorite
+export interface ToggleFavoriteResponse {
+  success: boolean;
+  title: SavedTitle;
+}
+
+// Response for getting favorites
+export interface FavoriteTitlesResponse {
+  success: boolean;
+  titles: SavedTitle[];
+}
+
 export const titlesAPI = {
   // Generate titles
-  generateTitles: ({
+  generateTitles: async ({
     prompt,
     maxLength = 400,
-    model = "deepseek/deepseek-chat-v3-0324:free",
-    includeKeywords = false,
+    
+    includeKeywords = true,
     saveTitles = true,
   }: TitleGenerationOptions): Promise<TitleGenerationResponse> => {
-    return axios
-      .post<TitleGenerationResponse>("/titles/generate", {
+    try {
+      const response = await axios.post<TitleGenerationResponse>("/titles/generate", {
         prompt,
         maxLength,
-        model,
+     
         includeKeywords,
         saveTitles,
-      })
-      .then((res) => res.data)
-      .catch((error) => {
-        console.error("Error generating titles:", error);
-        // Create a user-friendly error message
-        const errorMessage = error.response?.data?.message || 
-                            "Failed to generate titles. Please try again.";
-        
-        // Return a structured error response
-        return {
-          success: false,
-          titles: [],
-          error: errorMessage
-        };
       });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error generating titles:", error);
+      const errorMessage = error.response?.data?.message || "Failed to generate titles. Please try again.";
+      return {
+        success: false,
+        titles: [],
+        error: errorMessage
+      };
+    }
   },
 
   // Get all title generations with pagination
-  getUserTitleGenerations: (page: number = 1, limit: number = 10): Promise<PaginatedGenerationsResponse> => {
-    return axios
-      .get<PaginatedGenerationsResponse>(`/titles/generations?page=${page}&limit=${limit}`)
-      .then((res) => res.data)
-      .catch((error) => {
-        console.error("Error fetching title generations:", error);
-        throw error;
-      });
+  getUserTitleGenerations: async (page: number = 1, limit: number = 10): Promise<PaginatedGenerationsResponse> => {
+    try {
+      const response = await axios.get<PaginatedGenerationsResponse>(
+        `/titles/generations?page=${page}&limit=${limit}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching title generations:", error);
+      throw error;
+    }
   },
 
   // Get a specific title generation by ID
-  getTitleGenerationById: (id: string): Promise<{ success: boolean; generation: TitleGeneration }> => {
-    return axios
-      .get(`/titles/generations/${id}`)
-      .then((res) => res.data)
-      .catch((error) => {
-        console.error("Error fetching title generation:", error);
-        throw error;
-      });
+  getTitleGenerationById: async (id: string): Promise<GenerationByIdResponse> => {
+    try {
+      const response = await axios.get<GenerationByIdResponse>(`/titles/generations/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching title generation:", error);
+      throw error;
+    }
   },
 
   // Toggle favorite status for a title
-  toggleFavoriteTitle: (titleId: string): Promise<{ success: boolean; title: SavedTitle }> => {
-    return axios
-      .put(`/titles/${titleId}/favorite`)
-      .then((res) => res.data)
-      .catch((error) => {
-        console.error("Error toggling favorite status:", error);
-        throw error;
-      });
+  toggleFavoriteTitle: async (titleId: string): Promise<ToggleFavoriteResponse> => {
+    try {
+      const response = await axios.put<ToggleFavoriteResponse>(`/titles/${titleId}/favorite`);
+      return response.data;
+    } catch (error) {
+      console.error("Error toggling favorite status:", error);
+      throw error;
+    }
   },
 
   // Get all favorite titles
-  getFavoriteTitles: (): Promise<{ success: boolean; titles: SavedTitle[] }> => {
-    return axios
-      .get('/titles/favorites')
-      .then((res) => res.data)
-      .catch((error) => {
-        console.error("Error fetching favorite titles:", error);
-        throw error;
-      });
+  getFavoriteTitles: async (): Promise<FavoriteTitlesResponse> => {
+    try {
+      const response = await axios.get<FavoriteTitlesResponse>('/titles/favorites');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching favorite titles:", error);
+      throw error;
+    }
   }
 };

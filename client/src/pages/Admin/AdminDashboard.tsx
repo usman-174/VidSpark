@@ -1,11 +1,16 @@
+// src/pages/admin/DashboardPage.tsx
+
 import GrowthChart from "@/components/admin/GrowthChart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pie, Bar } from "react-chartjs-2";
 import {
   CreditStats,
   DomainStats,
-  InvitationStats
+  InvitationStats,
+  UserGrowthData,
+  FeatureUsageStats,
 } from "@/types/adminTypes";
 import {
   ArcElement,
@@ -14,25 +19,26 @@ import {
   Chart as ChartJS,
   Legend,
   LinearScale,
-  Title,
+  Title as ChartTitle,
   Tooltip,
 } from "chart.js";
+import { UserPlus, Users, Users as UsersIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { adminAPI } from "@/api/adminApi";
+import React from "react";
 
-import { UserPlus, Users, UsersIcon } from "lucide-react";
-import { Pie } from "react-chartjs-2";
-
-// Register ChartJS components
+// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
+  ChartTitle,
   Tooltip,
   ArcElement,
   Legend
 );
 
-// Stat Card Component
+// Simplified StatCard component
 const StatCard = ({
   title,
   value,
@@ -48,9 +54,7 @@ const StatCard = ({
 }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-sm font-medium text-gray-600">
-        {title} 
-      </CardTitle>
+      <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
       <Icon className="h-4 w-4 text-gray-500" />
     </CardHeader>
     <CardContent>
@@ -68,7 +72,7 @@ const StatCard = ({
   </Card>
 );
 
-// Invitations Card Component
+// InvitationsCard component
 const InvitationsCard = ({
   data,
   loading,
@@ -103,7 +107,7 @@ const InvitationsCard = ({
             <div className="mt-4 border-t pt-4">
               <h3 className="text-sm font-medium mb-3">Top Inviters</h3>
               <div className="space-y-2">
-                {data.topInviters?.map((inviter, idx) => (
+                {data.topInviters.map((inviter, idx) => (
                   <div
                     key={idx}
                     className="flex justify-between items-center text-sm"
@@ -111,9 +115,7 @@ const InvitationsCard = ({
                     <span className="text-gray-600 truncate max-w-[200px]">
                       {inviter.email}
                     </span>
-                    <span className="font-medium">
-                      {inviter.invitationsSent}
-                    </span>
+                    <span className="font-medium">{inviter.invitationsSent}</span>
                   </div>
                 ))}
               </div>
@@ -125,7 +127,7 @@ const InvitationsCard = ({
   </Card>
 );
 
-// Credits Card Component
+// CreditsCard component
 const CreditsCard = ({
   data,
   loading,
@@ -165,7 +167,7 @@ const CreditsCard = ({
   </Card>
 );
 
-// Domain Distribution Component
+// DomainDistributionCard component
 interface DomainDistributionCardProps {
   data: DomainStats | null;
   loading: boolean;
@@ -188,8 +190,6 @@ const DomainDistributionCard = ({
       </Card>
     );
   }
-  console.log("data", data);
-  
   if (!data?.domains || data.domains.length === 0) {
     return (
       <Card>
@@ -206,12 +206,10 @@ const DomainDistributionCard = ({
   }
 
   const chartData = {
-    labels: data?.domains?.map(
-      (entry) => `${entry.domain} (${entry.percentage}%)`
-    ),
+    labels: data.domains.map((entry) => `${entry.domain} (${entry.percentage}%)`),
     datasets: [
       {
-        data: data?.domains?.map((entry) => entry.count),
+        data: data.domains.map((entry) => entry.count),
         backgroundColor: [
           "#6366F1",
           "#F59E0B",
@@ -241,7 +239,7 @@ const DomainDistributionCard = ({
           generateLabels: function (chart: any) {
             const data = chart.data;
             if (data.labels.length && data.datasets.length) {
-              return data?.labels?.map((label: string, i: number) => ({
+              return data.labels.map((label: string, i: number) => ({
                 text: label,
                 fillStyle: data.datasets[0].backgroundColor[i],
                 index: i,
@@ -281,43 +279,207 @@ const DomainDistributionCard = ({
   );
 };
 
-// Main Dashboard Component
-// src/pages/admin/DashboardPage.tsx
-import { adminAPI } from "@/api/adminApi";
-import { useQuery } from "@tanstack/react-query";
+// ➜ Updated: FeatureUsageChart with numeric font weights
+const FeatureUsageChart = ({
+  data,
+  loading,
+}: {
+  data: FeatureUsageStats | null;
+  loading: boolean;
+}) => {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Feature Usage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48">
+            <Skeleton className="h-full w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || !data.success) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Feature Usage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center text-gray-500">
+            Unable to load feature usage.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Prepare the bar chart data
+  const chartData = {
+    labels: ["Keyword Analysis", "Title Generator"],
+    datasets: [
+      {
+        label: "Usage Count",
+        data: [data.usage.keyword_analysis, data.usage.title_generation],
+        backgroundColor: ["#4F46E5", "#10B981"],   // Indigo and Emerald
+        borderColor: ["#4338CA", "#059669"],       // Darker accents
+        borderWidth: 1,
+        borderRadius: 6,        // Rounded corners
+        maxBarThickness: 40,
+      },
+    ],
+  };
+
+  // Styling options for a more professional look
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false as const,
+    layout: {
+      padding: { top: 20, right: 20, left: 20, bottom: 10 },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: "Feature",
+          color: "#374151",
+          font: { size: 14, weight: 500 }, // numeric weight
+          padding: { bottom: 8 },
+        },
+        ticks: {
+          color: "#374151",
+          font: { size: 13, weight: 400 },
+        },
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: "Count",
+          color: "#374151",
+          font: { size: 14, weight: 500 }, // numeric weight
+          padding: { bottom: 8 },
+        },
+        ticks: {
+          color: "#374151",
+          font: { size: 13, weight: 400 },
+          precision: 0,
+        },
+        grid: {
+          color: "#E5E7EB", // Light gray grid lines
+          drawBorder: false,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: false, // Only one dataset, so hide legend
+      },
+      title: {
+        display: true,
+        text: "Feature Usage Overview",
+        color: "#1F2937",
+        font: { size: 16, weight: 600 }, // numeric weight
+        padding: { bottom: 10 },
+      },
+      tooltip: {
+        backgroundColor: "#FFFFFF",
+        titleColor: "#1F2937",
+        bodyColor: "#374151",
+        borderColor: "#D1D5DB",
+        borderWidth: 1,
+        titleFont: { weight: 600, size: 14 }, // numeric weight
+        bodyFont: { size: 13 },
+        padding: 10,
+        displayColors: false,
+        callbacks: {
+          label: (context: any) => `Count: ${context.raw}`,
+        },
+      },
+    },
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Feature Usage</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-48">
+          <Bar data={chartData} options={chartOptions} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const AdminDashboard = () => {
-  const { 
+  // Existing queries:
+  const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-    refetch: refetchStats
+    refetch: refetchStats,
   } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: adminAPI.getStats
+    queryKey: ["admin", "stats"],
+    queryFn: adminAPI.getStats,
   });
 
-  const { data: invitations, isLoading: invitationsLoading } = useQuery({
-    queryKey: ['admin', 'invitations'],
-    queryFn: adminAPI.getInvitations
+  const {
+    data: invitations,
+    isLoading: invitationsLoading,
+  } = useQuery({
+    queryKey: ["admin", "invitations"],
+    queryFn: adminAPI.getInvitations,
   });
 
-  const { data: credits, isLoading: creditsLoading } = useQuery({
-    queryKey: ['admin', 'credits'],
-    queryFn: adminAPI.getCredits
+  const {
+    data: credits,
+    isLoading: creditsLoading,
+  } = useQuery({
+    queryKey: ["admin", "credits"],
+    queryFn: adminAPI.getCredits,
   });
 
-  const { data: userGrowth, isLoading: growthLoading } = useQuery({
-    queryKey: ['admin', 'growth'],
-    queryFn: adminAPI.getUserGrowth
+  const {
+    data: userGrowth,
+    isLoading: growthLoading,
+  } = useQuery({
+    queryKey: ["admin", "growth"],
+    queryFn: adminAPI.getUserGrowth,
   });
 
-  const { data: userDomains, isLoading: domainsLoading } = useQuery({
-    queryKey: ['admin', 'domains'],
-    queryFn: adminAPI.getUserDomains
+  const {
+    data: userDomains,
+    isLoading: domainsLoading,
+  } = useQuery({
+    queryKey: ["admin", "domains"],
+    queryFn: adminAPI.getUserDomains,
   });
 
-  const isLoading = statsLoading || invitationsLoading || creditsLoading || growthLoading || domainsLoading;
+  // ➜ New: feature‐usage query
+  const {
+    data: featureUsage,
+    isLoading: featureUsageLoading,
+  } = useQuery({
+    queryKey: ["admin", "featureUsage"],
+    queryFn: adminAPI.getFeatureUsage,
+  });
+
+  // Combine loading flags so we can pass a single “isLoading” to sub‐components
+  const isLoading =
+    statsLoading ||
+    invitationsLoading ||
+    creditsLoading ||
+    growthLoading ||
+    domainsLoading ||
+    featureUsageLoading;
 
   if (statsError) {
     return (
@@ -332,47 +494,60 @@ export const AdminDashboard = () => {
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-       
       </div>
 
+      {/* ————————————————
+          Top‐level Stats
+      ———————————————— */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
           value={stats?.totalUsers}
           icon={Users}
-          loading={isLoading}
+          loading={statsLoading}
           subtitle={`${stats?.userGrowthRate}% growth rate`}
         />
         <StatCard
-          title="Users with Refferals"
+          title="Users with Referrals"
           value={stats?.usersWithChildren}
           icon={UsersIcon}
-          loading={isLoading}
+          loading={statsLoading}
         />
         <StatCard
           title="New Users Today"
           value={stats?.newUsersToday}
           icon={UserPlus}
-          loading={isLoading}
+          loading={statsLoading}
         />
+        {/* You can re-enable “Admin Users” if desired */}
         {/* <StatCard
           title="Admin Users"
           value={stats?.activeAdminUsers}
-          icon={Star}
-          loading={isLoading}
+          icon={UsersIcon}
+          loading={statsLoading}
         /> */}
       </div>
 
+      {/* ————————————————
+          Feature Usage Chart
+      ———————————————— */}
+      <FeatureUsageChart data={featureUsage!} loading={featureUsageLoading} />
+
+      {/* ————————————————
+          Invitations & Credits
+      ———————————————— */}
       <div className="grid gap-4 md:grid-cols-2">
-        <InvitationsCard data={invitations!} loading={isLoading} />
-        <CreditsCard data={credits!} loading={isLoading} />
+        <InvitationsCard data={invitations!} loading={invitationsLoading} />
+        <CreditsCard data={credits!} loading={creditsLoading} />
       </div>
 
+      {/* ————————————————
+          Growth Chart & Domains
+      ———————————————— */}
       <div className="grid gap-4 md:grid-cols-2">
-        <GrowthChart data={userGrowth!} loading={isLoading} />
-        <DomainDistributionCard data={userDomains!} loading={isLoading} />
+        <GrowthChart data={userGrowth!} loading={growthLoading} />
+        <DomainDistributionCard data={userDomains!} loading={domainsLoading} />
       </div>
     </div>
   );
 };
-

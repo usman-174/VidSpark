@@ -5,7 +5,7 @@ import Register from "@/pages/Register";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import { Toaster } from "react-hot-toast";
-
+import KeywordAnalysis from "./pages/KeywordAnalysis";
 import TitleGeneration from "@/pages/TitleGeneration";
 
 
@@ -51,11 +51,14 @@ function App() {
             <Route path="/packages" element={<Packages />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/payment-history" element={<PaymentHistory />} />
+            <Route path="/keyword-analysis" element={<KeywordAnalysis />} />
             <Route path="/title-generation" element={<TitleGeneration />} />
             <Route
               path="/sentimental-analysis"
               element={<SentimentAnalysis />}
             />
+            <Route path="/keyword-analysis" element={<KeywordAnalysis />} />
+
             {/* Profile */}
             <Route path="/profile" element={<Profile />} />
           </Route>

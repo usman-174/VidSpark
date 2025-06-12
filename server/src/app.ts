@@ -42,6 +42,8 @@ app.get("/health", (req, res) => {
 // Authentication and invitation routes
 app.use("/api/auth", authRoutes);
 app.use("/api/invitations", invitationRoutes);
+import keywordRoutes from './routes/keywordRoutes';
+
 
 // Video scraping and admin routes
 app.use("/api/videos", setUser, ytRouter);
@@ -51,7 +53,10 @@ app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
 app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
 app.use("/api/payments", setUser, restrictTo(["USER", "ADMIN"]), paymentRoutes);
 app.use("/api/titles", setUser, restrictTo(["USER"]), titleRoutes);
-app.use("/api/policies", setUser, restrictTo(["USER"]), policyRoutes);
+app.use("/api/policies", setUser, restrictTo(["ADMIN"]), policyRoutes);
+app.use("/api/keywords", setUser, restrictTo(["USER"]), keywordRoutes);
+
+
 
 app.listen(PORT, () => {
   console.log("Environment:", process.env.NODE_ENV);
