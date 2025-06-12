@@ -23,6 +23,7 @@
     "cloudinary": "^2.5.1",
     "detect-lang": "^1.2.0",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "franc": "^5.0.0",
     "franc-min": "^6.2.0",
