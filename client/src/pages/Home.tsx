@@ -15,31 +15,21 @@ import {
   Activity,
   BarChart2,
   Zap,
-  Newspaper,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-
-interface NewsIdea {
-  id: string;
-  title: string;
-  link: string;
-  publishedAt: string;
-}
+import NewsReports from "@/pages/NewsReports";
 
 const Home = () => {
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
-  const [newsIdeas, setNewsIdeas] = useState<NewsIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [newsLoading, setNewsLoading] = useState(true);
 
   useEffect(() => {
     fetchTrendingVideos();
-    fetchNewsIdeas();
   }, []);
 
   const fetchTrendingVideos = async () => {
@@ -52,18 +42,6 @@ const Home = () => {
       console.error("Error fetching trending videos:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchNewsIdeas = async () => {
-    try {
-      setNewsLoading(true);
-      const response = await axiosInstance.get("/news-ideas");
-      setNewsIdeas(response.data.news || []);
-    } catch (error) {
-      console.error("Error fetching news ideas:", error);
-    } finally {
-      setNewsLoading(false);
     }
   };
 
@@ -212,39 +190,8 @@ const Home = () => {
             </CardContent>
           </Card>
 
-          {/* News Ideas */}
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg">
-                <Newspaper className="mr-2 h-5 w-5 text-indigo-500" />
-                News Ideas
-              </CardTitle>
-              <CardDescription>Fresh daily ideas from news headlines</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[300px] pr-4 space-y-2">
-                {newsLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-4 w-full" />
-                  ))
-                ) : newsIdeas.length === 0 ? (
-                  <p className="text-gray-600 text-sm">No news available.</p>
-                ) : (
-                  newsIdeas.map((news) => (
-                    <a
-                      key={news.id}
-                      href={news.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-sm text-blue-600 hover:underline"
-                    >
-                      {news.title}
-                    </a>
-                  ))
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          {/* News Ideas Sidebar Component */}
+          <NewsReports />
         </div>
       </div>
     </div>
