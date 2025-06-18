@@ -7,7 +7,8 @@ import Login from "./pages/Login";
 import { Toaster } from "react-hot-toast";
 import KeywordAnalysis from "./pages/KeywordAnalysis";
 import TitleGeneration from "@/pages/TitleGeneration";
-import NewsIdeas from "@/pages/NewsReports";
+import NewsReports from "@/pages/NewsReports";
+
 
 
 
@@ -60,7 +61,7 @@ function App() {
               element={<SentimentAnalysis />}
             />
             <Route path="/keyword-analysis" element={<KeywordAnalysis />} />
-             <Route path="/news-ideas" element={<NewsIdeas />} />
+            <Route path="/news" element={<NewsReports />} />
 
 
             {/* Profile */}

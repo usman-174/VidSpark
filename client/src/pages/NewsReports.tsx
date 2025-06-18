@@ -9,7 +9,7 @@ interface NewsIdea {
   id: string;
   title: string;
   link: string;
-  publishedAt: string;
+  pubDate: string; // Should match backend field name
 }
 
 const NewsReports = () => {
@@ -17,20 +17,21 @@ const NewsReports = () => {
   const [newsLoading, setNewsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNewsIdeas = async () => {
-      try {
-        setNewsLoading(true);
-        const response = await axiosInstance.get("/news-ideas");
-        setNewsIdeas(response.data.news || []);
-      } catch (error) {
-        console.error("Error fetching news ideas:", error);
-      } finally {
-        setNewsLoading(false);
-      }
-    };
+  const fetchNewsIdeas = async () => {
+    try {
+      setNewsLoading(true);
+      const response = await axiosInstance.get("/news/show");
+        console.log("News API response:", response.data);
+      setNewsIdeas(response.data.news || []);
+    } catch (error) {
+      console.error("Error fetching news ideas:", error);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
 
-    fetchNewsIdeas();
-  }, []);
+  fetchNewsIdeas();
+}, []);
 
   return (
     <Card className="h-fit">
@@ -50,17 +51,22 @@ const NewsReports = () => {
           ) : newsIdeas.length === 0 ? (
             <p className="text-gray-600 text-sm">No news available.</p>
           ) : (
-            newsIdeas.map((news) => (
-              <a
-                key={news.id}
-                href={news.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-sm text-blue-600 hover:underline"
-              >
-                {news.title}
-              </a>
-            ))
+           newsIdeas.map((news) => (
+  <div key={news.id} className="text-sm space-y-1">
+    <a
+      href={news.link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-blue-600 hover:underline"
+    >
+      {news.title}
+    </a>
+    <p className="text-gray-500 text-xs">
+      {new Date(news.pubDate).toLocaleDateString()}
+    </p>
+  </div>
+))
+
           )}
         </ScrollArea>
       </CardContent>

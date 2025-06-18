@@ -15,6 +15,13 @@ import paymentRoutes from "./routes/paymentRoutes";
 import policyRoutes from "./routes/policyRoutes"; // Import the new policy routes
 import titleRoutes from "./routes/titleRoutes";
 import newsRouter from './routes/newsRouter';
+import { autoFetchNewsIdeas } from './controller/newsController';
+
+autoFetchNewsIdeas(); // fetch once when server starts
+
+// OR use node-cron for daily fetch:
+import cron from 'node-cron';
+cron.schedule('0 6 * * *', autoFetchNewsIdeas); // every day at 6 AM
 
 
 dotenv.config();
