@@ -86,13 +86,26 @@ model GeneratedTitle {
 
 model FeatureUsage {
   id         String   @id @default(cuid())
-  feature    String
-  count      Int      @default(1)
-  createdAt  DateTime @default(now())
+  feature    String   @unique
+  totalCount Int      @default(1)
   updatedAt  DateTime @updatedAt
-
-  @@unique([feature])
 }
+
+model FeatureUsageLog {
+  id        String   @id @default(cuid())
+  feature   String
+  usedAt    DateTime @default(now())
+}
+
+model NewsIdeaTemp {
+  id        String   @id @default(uuid())
+  title     String
+  link      String
+  pubDate   DateTime
+  createdAt DateTime @default(now())
+}
+
+
 
 model Credit {
   id        String   @id @default(uuid())

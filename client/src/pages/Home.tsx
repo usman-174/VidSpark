@@ -9,20 +9,37 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPopularKeywords } from "@/lib/utils";
-import { Clock, TrendingUp, Activity, BarChart2, Zap } from "lucide-react";
+import {
+  Clock,
+  TrendingUp,
+  Activity,
+  BarChart2,
+  Zap,
+  Newspaper,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
+interface NewsIdea {
+  id: string;
+  title: string;
+  link: string;
+  publishedAt: string;
+}
+
 const Home = () => {
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
+  const [newsIdeas, setNewsIdeas] = useState<NewsIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   useEffect(() => {
     fetchTrendingVideos();
+    fetchNewsIdeas();
   }, []);
 
   const fetchTrendingVideos = async () => {
@@ -35,6 +52,18 @@ const Home = () => {
       console.error("Error fetching trending videos:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchNewsIdeas = async () => {
+    try {
+      setNewsLoading(true);
+      const response = await axiosInstance.get("/news-ideas");
+      setNewsIdeas(response.data.news || []);
+    } catch (error) {
+      console.error("Error fetching news ideas:", error);
+    } finally {
+      setNewsLoading(false);
     }
   };
 
@@ -85,22 +114,11 @@ const Home = () => {
               <CardDescription>Access main features quickly</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
-              <Button asChild>
-                <Link to="/title-generation">Generate Titles</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/sentimental-analysis">Sentiment Analysis</Link>
-              </Button>
-            <Button asChild>
-  <Link to="/keyword-analysis">Keyword Analysis</Link>
-</Button>
-
-              <Button asChild>
-                <Link to="/packages">View Packages</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/profile">Your Profile</Link>
-              </Button>
+              <Button asChild><Link to="/title-generation">Generate Titles</Link></Button>
+              <Button asChild><Link to="/sentimental-analysis">Sentiment Analysis</Link></Button>
+              <Button asChild><Link to="/keyword-analysis">Keyword Analysis</Link></Button>
+              <Button asChild><Link to="/packages">View Packages</Link></Button>
+              <Button asChild><Link to="/profile">Your Profile</Link></Button>
             </CardContent>
           </Card>
 
@@ -115,7 +133,6 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">No recent activities to show.</p>
-              {/* Placeholder: Implement recent activities fetching and display */}
             </CardContent>
           </Card>
 
@@ -130,7 +147,6 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">Insights will be available here.</p>
-              {/* Placeholder: Implement insights charts or stats */}
             </CardContent>
           </Card>
 
@@ -168,14 +184,15 @@ const Home = () => {
         </div>
 
         {/* Sidebar */}
-        <div>
+        <div className="space-y-6">
+          {/* Popular Keywords */}
           <Card className="h-fit">
             <CardHeader>
               <CardTitle className="text-lg">Popular Keywords</CardTitle>
               <CardDescription>Trending topics in recent videos</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px] pr-4">
+              <ScrollArea className="h-[250px] pr-4">
                 <div className="flex flex-wrap gap-2">
                   {isLoading
                     ? [...Array(10)].map((_, i) => (
@@ -191,6 +208,40 @@ const Home = () => {
                         </Badge>
                       ))}
                 </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* News Ideas */}
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg">
+                <Newspaper className="mr-2 h-5 w-5 text-indigo-500" />
+                News Ideas
+              </CardTitle>
+              <CardDescription>Fresh daily ideas from news headlines</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px] pr-4 space-y-2">
+                {newsLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-4 w-full" />
+                  ))
+                ) : newsIdeas.length === 0 ? (
+                  <p className="text-gray-600 text-sm">No news available.</p>
+                ) : (
+                  newsIdeas.map((news) => (
+                    <a
+                      key={news.id}
+                      href={news.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-sm text-blue-600 hover:underline"
+                    >
+                      {news.title}
+                    </a>
+                  ))
+                )}
               </ScrollArea>
             </CardContent>
           </Card>

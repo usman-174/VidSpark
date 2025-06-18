@@ -1,4 +1,4 @@
-import { GoogleAdsApi, enums, services } from 'google-ads-api';
+/*import { GoogleAdsApi, enums, services } from 'google-ads-api';
 
 const client = new GoogleAdsApi({
   client_id: process.env.GADS_CLIENT_ID!,
@@ -43,4 +43,4 @@ export async function fetchKeywordMetrics(keyword: string) {
     console.error('Google Ads API Error:', error.message);
     return null;
   }
-}
+}*/

@@ -4,13 +4,14 @@ import * as youtubeService from "../services/ytService";
 import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
 import axios from "axios";
 import { TfIdf } from "natural";
-
 import vader from "vader-sentiment";
 import { deductCredits } from "../services/userService";
+import { incrementFeatureUsage } from "../services/statsService";
 
-export const analyzeVideoSentiment = async (req: Request, res: Response) :Promise<any> => {
+export const analyzeVideoSentiment = async (req: Request, res: Response): Promise<any> => {
   try {
     await loadKeysFromDB();
+    const { prisma } = await initializeDependencies();
     const { videoId } = req.query;
     const { user } = res.locals;
 
@@ -33,17 +34,13 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) :Promis
       (item: any) => item.snippet.topLevelComment.snippet.textDisplay
     );
 
-    // Regular expression to detect URLs in text
     const urlRegex =
       /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
 
-    // Filter out comments with links
     const comments = allComments.filter((comment) => !urlRegex.test(comment));
 
     console.log(
-      `Filtered ${
-        allComments.length - comments.length
-      } comments with links out of ${allComments.length} total comments`
+      `Filtered ${allComments.length - comments.length} comments with links out of ${allComments.length} total comments`
     );
 
     if (!comments.length) {
@@ -52,31 +49,23 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) :Promis
         .json({ error: "No valid comments found after filtering." });
     }
 
-    // Configuration for neutral bias reduction
-    const NEUTRAL_THRESHOLD = 0.05; // Threshold to determine what's "barely" neutral
-    const NEUTRAL_REDISTRIBUTION_FACTOR = 0.7; // How much to redistribute (0-1)
+    const NEUTRAL_THRESHOLD = 0.05;
+    const NEUTRAL_REDISTRIBUTION_FACTOR = 0.7;
 
-    // Process sentiment for each comment
     const sentimentScores = comments.map((comment: string) => {
       const sentimentResult =
         vader.SentimentIntensityAnalyzer.polarity_scores(comment);
 
-      // Determine sentiment category with the bias adjustment
       let sentiment: "positive" | "negative" | "neutral";
 
       if (sentimentResult.neu > 0.5) {
-        // If it's primarily neutral
-        // Calculate difference between positive and negative
         const posnegDiff = Math.abs(sentimentResult.pos - sentimentResult.neg);
 
         if (posnegDiff >= NEUTRAL_THRESHOLD) {
-          // If there's a meaningful difference, lean toward that direction
           sentiment =
             sentimentResult.pos > sentimentResult.neg ? "positive" : "negative";
 
-          // Adjust scores - reduce neutrality and boost the dominant sentiment
-          const adjustment =
-            sentimentResult.neu * NEUTRAL_REDISTRIBUTION_FACTOR;
+          const adjustment = sentimentResult.neu * NEUTRAL_REDISTRIBUTION_FACTOR;
           sentimentResult.neu -= adjustment;
 
           if (sentiment === "positive") {
@@ -88,7 +77,6 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) :Promis
           sentiment = "neutral";
         }
       } else {
-        // For comments that aren't primarily neutral, use standard classification
         sentiment =
           sentimentResult.compound >= 0.05
             ? "positive"
@@ -104,7 +92,6 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) :Promis
       };
     });
 
-    // Calculate overall sentiment with the adjusted scores
     const overallSentiment = sentimentScores.reduce(
       (acc, curr) => {
         acc.positive += curr.pos;
@@ -120,25 +107,36 @@ export const analyzeVideoSentiment = async (req: Request, res: Response) :Promis
     overallSentiment.neutral /= total;
     overallSentiment.negative /= total;
 
-    // Get some representative comment examples for each sentiment
-
-    // Add stats about filtered comments
     const stats = {
       totalCommentsReceived: allComments.length,
       commentsWithLinks: allComments.length - comments.length,
       commentsAnalyzed: comments.length,
     };
 
+    // ✅ Save to database
+    await prisma.sentimentalAnalysis.create({
+      data: {
+        userId: user.userId,
+        videoId: videoId as string,
+        positive: overallSentiment.positive,
+        neutral: overallSentiment.neutral,
+        negative: overallSentiment.negative,
+      },
+    });
+
+    // ✅ Deduct credit
     await deductCredits(user.userId, 1);
+
+    // ✅ Increment feature usage
+    await incrementFeatureUsage("sentiment_analysis");
 
     res.status(200).json({
       overallSentiment,
       sentimentScores,
       videoTitle,
-
       stats,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "Error analyzing sentiment:",
       error.response?.data || error.message

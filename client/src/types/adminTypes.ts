@@ -5,6 +5,7 @@ export interface AdminStats {
   usersWithChildren: number;
   userGrowthRate: number;
 }
+
 export interface UserGrowthData {
   dailyGrowth: Array<{ date: string; count: number }>;
   trends: {
@@ -37,7 +38,6 @@ export interface CreditStats {
   }[];
 }
 
-
 export interface DomainStats {
   domains: Array<{
     domain: string;
@@ -50,14 +50,27 @@ export interface DomainStats {
     otherUsersCount: number;
   };
 }
-  export interface UserDomainStats {
-    domain: string;
-    count: number;
-  }
-  export interface FeatureUsageStats {
+
+export interface UserDomainStats {
+  domain: string;
+  count: number;
+}
+
+export interface FeatureUsageStats {
   success: boolean;
   usage: {
     keyword_analysis: number;
     title_generation: number;
+    sentiment_analysis: number;
   };
+}
+
+// ✅ New Interface for Date-Range Usage
+export interface FeatureUsageByRangeResponse {
+  success: boolean;
+  usage: Array<{
+    feature: string;
+    count: number;
+  }>;
+  topFeature: string | null;
 }

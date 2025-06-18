@@ -14,6 +14,8 @@ import ytRouter from "./routes/ytRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
 import policyRoutes from "./routes/policyRoutes"; // Import the new policy routes
 import titleRoutes from "./routes/titleRoutes";
+import newsRouter from './routes/newsRouter';
+
 
 dotenv.config();
 
@@ -47,6 +49,7 @@ import keywordRoutes from './routes/keywordRoutes';
 
 // Video scraping and admin routes
 app.use("/api/videos", setUser, ytRouter);
+
 app.use("/api/admin", setUser, restrictTo(["ADMIN"]), adminRouter);
 app.use("/api/packages", setUser, restrictTo(["ADMIN", "USER"]), packageRouter);
 app.use("/api/users", setUser, restrictTo(["ADMIN"]), userRouter);
@@ -56,6 +59,8 @@ app.use("/api/titles", setUser, restrictTo(["USER"]), titleRoutes);
 app.use("/api/policies", setUser, restrictTo(["ADMIN"]), policyRoutes);
 app.use("/api/keywords", setUser, restrictTo(["USER"]), keywordRoutes);
 
+
+app.use("/api/news", setUser, restrictTo(["USER"]), newsRouter);
 
 
 app.listen(PORT, () => {

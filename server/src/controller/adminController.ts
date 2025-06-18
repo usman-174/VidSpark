@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { PrismaClient, PolicyType } from "@prisma/client";
+import { getFeatureUsageCountByRange } from "../services/statsService";
 
 const prisma = new PrismaClient();
 
@@ -377,38 +378,74 @@ export const getFeatureUsageStats = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Fetch counts from the featureUsage table for the two features
     const usageRows = await prisma.featureUsage.findMany({
       where: {
         feature: {
-          in: ["keyword_analysis", "title_generation"],
+          in: ["keyword_analysis", "title_generation", "sentiment_analysis"],
         },
       },
       orderBy: { feature: "asc" },
     });
 
-    // Transform into a simple object
     const result: Record<string, number> = {};
+
     for (const row of usageRows) {
-      result[row.feature] = row.count;
+      result[row.feature] = row.totalCount; // ✅ Correct: using totalCount from FeatureUsage model
     }
 
-    // Ensure both keys exist, default to 0 if missing
-    if (!result["keyword_analysis"]) {
-      result["keyword_analysis"] = 0;
-    }
-    if (!result["title_generation"]) {
-      result["title_generation"] = 0;
+    // Ensure all features are present, default to 0 if not found
+    for (const key of ["keyword_analysis", "title_generation", "sentiment_analysis"]) {
+      if (!(key in result)) result[key] = 0;
     }
 
-    // **Note: do not return res.json(...)** — just call it
     res.status(200).json({ success: true, usage: result });
   } catch (error) {
     console.error("❌ Error fetching feature usage stats:", error);
-    // Call next(error) or send a response without “return”
     res.status(500).json({
       success: false,
       message: "Failed to fetch feature usage stats",
+    });
+  }
+};
+export const getFeatureUsageByRange = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { range = "7d" } = req.query;
+    const int = req.query.range as string;
+    console.log("🔔 API HIT: /feature-usage-by-range");
+    console.log("🔍 Interval received:", int);
+    const validRanges: Record<string, string> = {
+      "24h": "1 day",
+      "7d": "7 days",
+      "30d": "30 days",
+    };
+
+    const interval = validRanges[range as string];
+    if (!interval) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid range. Valid options are: 24h, 7d, 30d",
+      });
+      return;
+    }
+
+    const result = await getFeatureUsageCountByRange(interval);
+
+    const topFeature = result.length > 0 ? result[0].feature : null;
+
+    res.status(200).json({
+      success: true,
+      usage: result,
+      topFeature,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching feature usage by range:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feature usage by range",
     });
   }
 };
