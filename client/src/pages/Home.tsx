@@ -9,13 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPopularKeywords } from "@/lib/utils";
-import {
-  Clock,
-  TrendingUp,
-  Activity,
-  BarChart2,
-  Zap,
-} from "lucide-react";
+import { Clock, TrendingUp, Activity, BarChart2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +31,8 @@ const Home = () => {
       setIsLoading(true);
       const response = await axiosInstance.get("/videos/trending");
       setTrendingVideos(response.data);
-      setKeywords(getPopularKeywords(response.data));
+      setKeywords(getPopularKeywords(response.data.videos));
+
     } catch (error) {
       console.error("Error fetching trending videos:", error);
     } finally {
@@ -92,11 +87,22 @@ const Home = () => {
               <CardDescription>Access main features quickly</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
-              <Button asChild><Link to="/title-generation">Generate Titles</Link></Button>
-              <Button asChild><Link to="/sentimental-analysis">Sentiment Analysis</Link></Button>
-              <Button asChild><Link to="/keyword-analysis">Keyword Analysis</Link></Button>
-              <Button asChild><Link to="/packages">View Packages</Link></Button>
-              <Button asChild><Link to="/profile">Your Profile</Link></Button>
+              <Button asChild>
+                <Link to="/title-generation">Generate Titles</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/sentimental-analysis">Sentiment Analysis</Link>
+              </Button>
+            <Button asChild>
+  <Link to="/keyword-analysis">Keyword Analysis</Link>
+</Button>
+
+              <Button asChild>
+                <Link to="/packages">View Packages</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/profile">Your Profile</Link>
+              </Button>
             </CardContent>
           </Card>
 
@@ -111,6 +117,7 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">No recent activities to show.</p>
+              {/* Placeholder: Implement recent activities fetching and display */}
             </CardContent>
           </Card>
 
@@ -125,6 +132,7 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">Insights will be available here.</p>
+              {/* Placeholder: Implement insights charts or stats */}
             </CardContent>
           </Card>
 
@@ -162,15 +170,14 @@ const Home = () => {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Popular Keywords */}
+        <div>
           <Card className="h-fit">
             <CardHeader>
               <CardTitle className="text-lg">Popular Keywords</CardTitle>
               <CardDescription>Trending topics in recent videos</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[250px] pr-4">
+              <ScrollArea className="h-[400px] pr-4">
                 <div className="flex flex-wrap gap-2">
                   {isLoading
                     ? [...Array(10)].map((_, i) => (
@@ -189,13 +196,13 @@ const Home = () => {
               </ScrollArea>
             </CardContent>
           </Card>
-
-          {/* News Ideas Sidebar Component */}
           <NewsReports />
+  
         </div>
       </div>
     </div>
   );
 };
+
 
 export default Home;

@@ -20,7 +20,7 @@ import {
   DomainStats,
   InvitationStats,
   UserGrowthData,
-  FeatureUsageStats,
+  FeatureUsageStats,FeatureUsageByRangeResponse
 } from "@/types/adminTypes";
 import {
   ArcElement,
@@ -314,7 +314,7 @@ const FeatureUsageChartWithPanel = ({
     try {
       setPanelLoading(true);
       const res = await axios.get(
-        `/api/admin/feature-usage-by-range?range=${selectedRange}`
+        `/feature-usage-by-range?range=${selectedRange}`
       );
       setPanelData(res.data);
     } catch (error) {

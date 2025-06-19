@@ -23,13 +23,14 @@ export async function incrementFeatureUsage(feature: string): Promise<void> {
 
 export const getFeatureUsageCountByRange = async (interval: string) => {
   console.log("🔍 Running feature usage query for interval:", interval);
+  console.log("🕐 NOW:", new Date().toISOString());
 
   const result = await prisma.$queryRawUnsafe<{ feature: string; count: number }[]>(
     `SELECT 
       feature,
       COUNT(*)::INTEGER as count
      FROM "FeatureUsageLog"
-     WHERE "usedAt" >= NOW() - INTERVAL '${interval}'
+     WHERE "usedAt" >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '${interval}'
      GROUP BY feature
      ORDER BY count DESC`
   );
