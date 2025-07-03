@@ -5,8 +5,8 @@ dist/*
 ./dist
 dist
 package-lock.json
-
-
+server/.env
+.env
 p-server/*.gguf
 p-server/venv/
 p-server/__pycache__

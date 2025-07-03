@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import NewsReports from "@/pages/NewsReports";
+import IdeasOfTheDay from "@/components/home/IdeasOfTheDay";
 
 const Home = () => {
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
@@ -196,7 +197,7 @@ const Home = () => {
               </ScrollArea>
             </CardContent>
           </Card>
-          <NewsReports />
+          <IdeasOfTheDay />
   
         </div>
       </div>

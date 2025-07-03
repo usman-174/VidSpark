@@ -1,3 +1,5 @@
+//src/services/newsService.ts
+
 import Parser from 'rss-parser';
 import { PrismaClient } from '@prisma/client';
 
