@@ -1,0 +1,63 @@
+# ===============================
+# 🚫 Python artifacts
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+logs
+logs/
+*.log
+# ===============================
+# 🚫 Virtual environments
+# ===============================
+venv/
+env/
+.venv/
+
+# ===============================
+# 🚫 Jupyter notebooks checkpoints
+# ===============================
+.ipynb_checkpoints
+
+# ===============================
+# 🚫 OS files
+# ===============================
+.DS_Store
+Thumbs.db
+
+# ===============================
+# 🚫 Package metadata
+# ===============================
+*.egg-info/
+dist/
+build/
+
+# ===============================
+# 🚫 Logs
+# ===============================
+*.log
+
+# ===============================
+# 🚫 VSCode settings (optional)
+# ===============================
+.vscode/
+
+# ===============================
+# 🚫 Environment variable files (if any)
+# ===============================
+.env
+.env.*
+
+# ===============================
+# 🚫 Model files (Optional decision)
+# ===============================
+
+# If you DO NOT want to share trained model packets on GitHub (recommended for private or large files)
+
+
+# ===============================
+# 🚫 Requirements lock (optional)
+# ===============================
+poetry.lock
+Pipfile.lock
