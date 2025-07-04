@@ -1,15 +1,40 @@
 
-// rc/services/statsService.ts
+// src/services/statsService.ts
 import { PrismaClient } from "@prisma/client"; // adjust path if needed
 const prisma = new PrismaClient();
+
 export async function incrementFeatureUsage(feature: string): Promise<void> {
   try {
+    // Increment total count
     await prisma.featureUsage.upsert({
       where: { feature },
-      update: { count: { increment: 1 } },
-      create: { feature, count: 1 },
+      update: { totalCount: { increment: 1 } },
+      create: { feature, totalCount: 1 },
+    });
+
+    // ✅ Insert usage log
+    await prisma.featureUsageLog.create({
+      data: { feature },
     });
   } catch (error) {
     console.error(`❌ Failed to increment usage for feature "${feature}"`, error);
   }
 }
+
+export const getFeatureUsageCountByRange = async (interval: string) => {
+  console.log("🔍 Running feature usage query for interval:", interval);
+  console.log("🕐 NOW:", new Date().toISOString());
+
+  const result = await prisma.$queryRawUnsafe<{ feature: string; count: number }[]>(
+    `SELECT 
+      feature,
+      COUNT(*)::INTEGER as count
+     FROM "FeatureUsageLog"
+     WHERE "usedAt" >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - INTERVAL '${interval}'
+     GROUP BY feature
+     ORDER BY count DESC`
+  );
+
+  console.log("📊 Feature usage result:", result);
+  return result;
+};

@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import NewsReports from "@/pages/NewsReports";
+import IdeasOfTheDay from "@/components/home/IdeasOfTheDay";
 
 const Home = () => {
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
@@ -30,7 +32,8 @@ const Home = () => {
       setIsLoading(true);
       const response = await axiosInstance.get("/videos/trending");
       setTrendingVideos(response.data);
-      setKeywords(getPopularKeywords(response.data));
+      setKeywords(getPopularKeywords(response.data.videos));
+
     } catch (error) {
       console.error("Error fetching trending videos:", error);
     } finally {
@@ -194,10 +197,13 @@ const Home = () => {
               </ScrollArea>
             </CardContent>
           </Card>
+          <IdeasOfTheDay />
+  
         </div>
       </div>
     </div>
   );
 };
+
 
 export default Home;

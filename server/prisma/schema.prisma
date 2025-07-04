@@ -83,16 +83,41 @@ model GeneratedTitle {
   generation        TitleGeneration @relation(fields: [titleGenerationId], references: [id], onDelete: Cascade)
   isFavorite        Boolean   @default(false)
 }
-
+// schema.prisma - Updated model for Ideas of the Day
+model IdeasOfTheDay {
+  id          String   @id @default(uuid())
+  title       String   // Generated YouTube title
+  originalNews String  // Original news title for reference
+  link        String   // Original news link
+  keywords    String[] // SEO keywords for the title
+  pubDate     DateTime // Original publication date
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("ideas_of_the_day")
+}
 model FeatureUsage {
   id         String   @id @default(cuid())
-  feature    String
-  count      Int      @default(1)
-  createdAt  DateTime @default(now())
+  feature    String   @unique
+  totalCount Int      @default(1)
   updatedAt  DateTime @updatedAt
-
-  @@unique([feature])
 }
+
+model FeatureUsageLog {
+  id        String   @id @default(cuid())
+  feature   String
+  usedAt    DateTime @default(now())
+}
+
+model NewsIdeaTemp {
+  id        String   @id @default(uuid())
+  title     String
+  link      String
+  pubDate   DateTime
+  createdAt DateTime @default(now())
+}
+
+
 
 model Credit {
   id        String   @id @default(uuid())
