@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,12 +19,16 @@ import {
   Heart,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { titlesAPI, SavedTitle } from "@/api/titlesApi";
 import useAuthStore from "@/store/authStore";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import FavoriteTitlesModal from "@/components/ui/TitleGeneration/FavouriteTitlesModal";
+import { 
+  useGenerateTitles, 
+  useTitleGeneration, 
+  useToggleFavorite 
+} from "@/hooks/useTitleGeneration";
 
 // Interface for title with keywords
 interface TitleWithKeywords {
@@ -38,24 +42,38 @@ type GeneratedTitle = string | TitleWithKeywords;
 const TitleGeneration = () => {
   const { user } = useAuthStore();
 
+  // React Query hooks
+  const generateTitlesMutation = useGenerateTitles();
+  const toggleFavoriteMutation = useToggleFavorite();
+
+  // Local state
   const [prompt, setPrompt] = useState("");
   const [generatedTitles, setGeneratedTitles] = useState<GeneratedTitle[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
-  const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(
-    null
-  );
-  const [savedTitleIds, setSavedTitleIds] = useState<Record<number, string>>(
-    {}
-  );
-  const [favoriteStatus, setFavoriteStatus] = useState<Record<number, boolean>>(
-    {}
-  );
-  const [savingFavorite, setSavingFavorite] = useState<Record<number, boolean>>(
-    {}
-  );
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null);
+
+  // Fetch the current generation data if we have an ID
+  const { data: currentGeneration } = useTitleGeneration(currentGenerationId);
+
+  // Memoize saved title IDs and favorite status from current generation
+  const { savedTitleIds, favoriteStatus } = useMemo(() => {
+    if (!currentGeneration?.titles) {
+      return { savedTitleIds: {}, favoriteStatus: {} };
+    }
+
+    const savedIds: Record<number, string> = {};
+    const favorites: Record<number, boolean> = {};
+
+    currentGeneration.titles.forEach((savedTitle, index) => {
+      if (index < generatedTitles.length) {
+        savedIds[index] = savedTitle.id;
+        favorites[index] = savedTitle.isFavorite;
+      }
+    });
+
+    return { savedTitleIds: savedIds, favoriteStatus: favorites };
+  }, [currentGeneration, generatedTitles.length]);
 
   // Helper functions
   const hasKeywords = (title: GeneratedTitle): title is TitleWithKeywords => {
@@ -92,73 +110,43 @@ const TitleGeneration = () => {
     if (!prompt.trim()) return;
 
     if (user?.creditBalance === 0) {
-      setError("Insufficient credits to generate titles.");
+      toast({
+        title: "Insufficient credits",
+        description: "You need credits to generate titles.",
+        variant: "destructive",
+      });
       return;
     }
 
-    setLoading(true);
-    setError("");
+    // Reset state
     setGeneratedTitles([]);
     setCurrentGenerationId(null);
-    setSavedTitleIds({});
-    setFavoriteStatus({});
 
     try {
-      const result = await titlesAPI.generateTitles({
+      const result = await generateTitlesMutation.mutateAsync({
         prompt: prompt.trim(),
-        includeKeywords: true, // Always include keywords
+        includeKeywords: true,
       });
-
-      if (!result.success) {
-        setError(result.error || "Failed to generate titles");
-        return;
-      }
 
       const extractedTitles = extractTitlesFromResponse(result);
 
       if (extractedTitles.length > 0) {
         setGeneratedTitles(extractedTitles);
-
-        // Handle saved titles if generation ID exists
+        
+        // Set the generation ID to trigger fetching detailed data
         if (result.generationId) {
           setCurrentGenerationId(result.generationId);
-
-          try {
-            const savedGeneration = await titlesAPI.getTitleGenerationById(
-              result.generationId
-            );
-
-            if (savedGeneration.success && savedGeneration.generation) {
-              const newSavedTitleIds: Record<number, string> = {};
-              const newFavoriteStatus: Record<number, boolean> = {};
-
-              savedGeneration.generation.titles.forEach(
-                (savedTitle: SavedTitle, index: number) => {
-                  if (index < extractedTitles.length) {
-                    newSavedTitleIds[index] = savedTitle.id;
-                    newFavoriteStatus[index] = savedTitle.isFavorite;
-                  }
-                }
-              );
-
-              setSavedTitleIds(newSavedTitleIds);
-              setFavoriteStatus(newFavoriteStatus);
-            }
-          } catch (fetchError) {
-            console.error(
-              "Error fetching saved generation details:",
-              fetchError
-            );
-          }
         }
       } else {
-        setError("Could not generate titles. Please try again.");
+        toast({
+          title: "No titles generated",
+          description: "Could not generate titles. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
+      // Error is already handled by the mutation's onError
       console.error("Error generating titles:", error);
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -173,7 +161,9 @@ const TitleGeneration = () => {
   };
 
   const handleToggleFavorite = async (index: number) => {
-    if (!savedTitleIds[index]) {
+    const titleId = savedTitleIds[index];
+    
+    if (!titleId) {
       toast({
         title: "Cannot favorite this title",
         description: "This title hasn't been saved to the database yet.",
@@ -182,40 +172,23 @@ const TitleGeneration = () => {
       return;
     }
 
-    setSavingFavorite({ ...savingFavorite, [index]: true });
-
     try {
-      const titleId = savedTitleIds[index];
-      const response = await titlesAPI.toggleFavoriteTitle(titleId);
-
-      if (response.success) {
-        const newStatus = !favoriteStatus[index];
-        setFavoriteStatus({ ...favoriteStatus, [index]: newStatus });
-
-        toast({
-          title: newStatus ? "Added to favorites" : "Removed from favorites",
-          description: newStatus
-            ? "Title has been added to your favorites"
-            : "Title has been removed from your favorites",
-        });
-      }
+      await toggleFavoriteMutation.mutateAsync(titleId);
+      // The mutation handles the optimistic updates and success messages
     } catch (error) {
+      // Error is already handled by the mutation's onError
       console.error("Error toggling favorite status:", error);
-      toast({
-        title: "Failed to update favorite status",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingFavorite({ ...savingFavorite, [index]: false });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !loading && prompt.trim()) {
+    if (e.key === "Enter" && !generateTitlesMutation.isPending && prompt.trim()) {
       handleGenerate();
     }
   };
+
+  // Show error from generation mutation
+  const error = generateTitlesMutation.error?.message;
 
   return (
     <>
@@ -262,10 +235,10 @@ const TitleGeneration = () => {
 
             <Button
               onClick={handleGenerate}
-              disabled={loading || !prompt.trim()}
+              disabled={generateTitlesMutation.isPending || !prompt.trim()}
               className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center"
             >
-              {loading ? (
+              {generateTitlesMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating...
@@ -371,14 +344,15 @@ const TitleGeneration = () => {
                                 : "text-gray-400 hover:text-red-500 hover:bg-red-50"
                             }`}
                             onClick={() => handleToggleFavorite(index)}
-                            disabled={savingFavorite[index]}
+                            disabled={toggleFavoriteMutation.isPending}
                             title={
                               favoriteStatus[index]
                                 ? "Remove from favorites"
                                 : "Add to favorites"
                             }
                           >
-                            {savingFavorite[index] ? (
+                            {toggleFavoriteMutation.isPending && 
+                             toggleFavoriteMutation.variables === savedTitleIds[index] ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Heart
