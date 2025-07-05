@@ -9,6 +9,7 @@ import KeywordAnalysis from "./pages/KeywordAnalysis";
 import TitleGeneration from "@/pages/TitleGeneration";
 import NewsReports from "@/pages/NewsReports";
 
+import EvaluationMatrix from "@/pages/EvaluationMatrix";
 
 
 
@@ -61,6 +62,8 @@ function App() {
               element={<SentimentAnalysis />}
             />
             <Route path="/keyword-analysis" element={<KeywordAnalysis />} />
+            <Route path="/evaluation-matrix" element={<EvaluationMatrix />} />
+
             <Route path="/news" element={<NewsReports />} />
 
 

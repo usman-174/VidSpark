@@ -66,6 +66,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { to: "/payment-history", icon: Banknote, label: "Payment History" },
     { to: "/title-generation", icon: Layout, label: "Title Generation" },
     { to: "/keyword-analysis", icon: BarChart, label: "Keyword Analysis" },
+    { to: "/evaluation-matrix", icon: BarChart, label: "Evaluation Matrix" },
 
   ];
   
