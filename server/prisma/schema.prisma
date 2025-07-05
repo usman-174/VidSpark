@@ -12,7 +12,6 @@ enum Gender {
   FEMALE
 }
 
-
 // Update your User model to include the relation
 model User {
   id                    String                @id @default(uuid())
@@ -27,33 +26,35 @@ model User {
   resetToken            String?
   role                  Role                  @default(USER)
   parentId              String?
-  creditBalance         Int                   @default(0) 
+  creditBalance         Int                   @default(0)
   credits               Credit[]
   sentInvitations       Invitation[]          @relation("UserInvitations")
   parent                User?                 @relation("ParentOf", fields: [parentId], references: [id])
   children              User[]                @relation("ParentOf")
   payments              Payment[]
   SentimentalAnalysis   SentimentalAnalysis[]
-  titleGenerations      TitleGeneration[]     // Add this line
-  keywordAnalyses      KeywordAnalysis[]
- 
+  titleGenerations      TitleGeneration[] // Add this line
+  keywordAnalyses       KeywordAnalysis[]
 
+  FeatureUsageLog FeatureUsageLog[]
+  UserEngagement  UserEngagement?
 }
+
 model KeywordAnalysis {
-  id          String    @id @default(uuid())
-  userId      String
-  videoUrl    String
-  keywords    String[]  // Store keywords as a string array
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  userId    String
+  videoUrl  String
+  keywords  String[] // Store keywords as a string array
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
 model PopularKeyword {
   id        String   @id @default(uuid())
   keyword   String   @unique
   count     Int      @default(1)
   updatedAt DateTime @updatedAt
 }
-
 
 model KeywordUsage {
   id        String   @id @default(uuid())
@@ -63,61 +64,188 @@ model KeywordUsage {
   @@index([createdAt])
 }
 
-
 model TitleGeneration {
-  id          String    @id @default(uuid())
-  prompt      String    @db.Text
-  userId      String
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  titles      GeneratedTitle[]  // One-to-many relationship with titles
-  provider    String?   // Store which provider generated the titles (ollama, openrouter, etc.)
+  id        String           @id @default(uuid())
+  prompt    String           @db.Text
+  userId    String
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titles    GeneratedTitle[] // One-to-many relationship with titles
+  provider  String? // Store which provider generated the titles (ollama, openrouter, etc.)
 }
 
 // Model for individual titles within a generation
 model GeneratedTitle {
-  id                String    @id @default(uuid())
+  id                String          @id @default(uuid())
   title             String
-  keywords          String[]  // Store keywords as an array
+  keywords          String[] // Store keywords as an array
   titleGenerationId String
   generation        TitleGeneration @relation(fields: [titleGenerationId], references: [id], onDelete: Cascade)
-  isFavorite        Boolean   @default(false)
+  isFavorite        Boolean         @default(false)
 }
+
 // schema.prisma - Updated model for Ideas of the Day
 model IdeasOfTheDay {
-  id          String   @id @default(uuid())
-  title       String   // Generated YouTube title
-  originalNews String  // Original news title for reference
-  link        String   // Original news link
-  keywords    String[] // SEO keywords for the title
-  pubDate     DateTime // Original publication date
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id           String   @id @default(uuid())
+  title        String // Generated YouTube title
+  originalNews String // Original news title for reference
+  link         String // Original news link
+  keywords     String[] // SEO keywords for the title
+  pubDate      DateTime // Original publication date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@map("ideas_of_the_day")
 }
+
+// Enhanced feature usage tracking
 model FeatureUsage {
-  id         String   @id @default(cuid())
-  feature    String   @unique
-  totalCount Int      @default(1)
-  updatedAt  DateTime @updatedAt
+  id         String      @id @default(cuid())
+  feature    FeatureType @unique
+  totalCount Int         @default(1)
+  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime    @default(now())
 }
 
+// Detailed usage logs for analytics
 model FeatureUsageLog {
-  id        String   @id @default(cuid())
-  feature   String
-  usedAt    DateTime @default(now())
+  id       String      @id @default(cuid())
+  feature  FeatureType
+  userId   String? // Track which user used the feature
+  metadata Json? // Store additional context (e.g., video URL, keywords count)
+  usedAt   DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([usedAt])
+  @@index([feature])
+  @@index([userId])
 }
 
-model NewsIdeaTemp {
-  id        String   @id @default(uuid())
-  title     String
-  link      String
-  pubDate   DateTime
+// Daily aggregated insights for faster queries
+model DailyInsights {
+  id   String   @id @default(cuid())
+  date DateTime @unique @db.Date
+
+  // Feature usage counts
+  keywordAnalysisCount   Int @default(0)
+  sentimentAnalysisCount Int @default(0)
+  titleGenerationCount   Int @default(0)
+  evaluationMetricCount  Int @default(0)
+
+  // User activity
+  activeUsers Int @default(0)
+  newUsers    Int @default(0)
+  totalUsers  Int @default(0)
+
+  // Content metrics
+  totalTitlesGenerated  Int @default(0)
+  totalKeywordsAnalyzed Int @default(0)
+  totalVideosAnalyzed   Int @default(0)
+
+  // Performance metrics
+  avgResponseTime Float? // Average API response time
+  errorRate       Float? // Error rate percentage
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("daily_insights")
 }
 
+// User engagement insights
+model UserEngagement {
+  id     String @id @default(cuid())
+  userId String @unique
 
+  // Feature usage per user
+  keywordAnalysisCount   Int @default(0)
+  sentimentAnalysisCount Int @default(0)
+  titleGenerationCount   Int @default(0)
+  evaluationMetricCount  Int @default(0)
+
+  // User behavior
+  firstUsedAt      DateTime?
+  lastUsedAt       DateTime?
+  totalSessions    Int       @default(0)
+  avgSessionLength Float? // in minutes
+
+  // Preferences (most used features)
+  favoriteFeature FeatureType?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_engagement")
+}
+
+// System performance metrics
+model SystemMetrics {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  // API Performance
+  avgResponseTime Float // milliseconds
+  requestCount    Int   @default(0)
+  errorCount      Int   @default(0)
+
+  // Feature-specific metrics
+  feature     FeatureType?
+  successRate Float? // percentage
+
+  // Resource usage (optional)
+  memoryUsage Float? // MB
+  cpuUsage    Float? // percentage
+
+  @@index([timestamp])
+  @@index([feature])
+  @@map("system_metrics")
+}
+
+// Popular content insights
+model PopularContent {
+  id            String   @id @default(cuid())
+  contentType   ContentType
+  content       String   // The actual content (keyword, title, etc.)
+  usageCount    Int      @default(1)
+  lastUsedAt    DateTime @default(now())
+  
+  // Additional metadata
+  metadata      Json?    // Store additional context
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Add compound unique constraint
+  @@unique([contentType, content], name: "contentType_content")
+  @@index([contentType])
+  @@index([usageCount])
+  @@map("popular_content")
+}
+
+// ================================
+// 📊 ENUMS FOR INSIGHTS
+// ================================
+
+enum FeatureType {
+  KEYWORD_ANALYSIS
+  SENTIMENT_ANALYSIS
+  TITLE_GENERATION
+  EVALUATION_METRIC
+  USER_AUTHENTICATION
+  PAYMENT_PROCESSING
+  ADMIN_DASHBOARD
+}
+
+enum ContentType {
+  KEYWORD
+  TITLE
+  VIDEO_URL
+  TAG
+  DESCRIPTION
+}
 
 model Credit {
   id        String   @id @default(uuid())
@@ -147,7 +275,6 @@ model Policy {
   createdAt DateTime   @default(now())
   type      PolicyType
 }
-
 
 model SentimentalAnalysis {
   id        String   @id @default(uuid())
@@ -221,7 +348,6 @@ model Video {
   category         Category @relation(fields: [categoryId], references: [categoryId])
 }
 
-
 model YT_KEYS {
   id        String   @id @default(uuid())
   key       String
@@ -232,7 +358,6 @@ enum PolicyType {
   PARENT_RELATIONSHIP
   SIMPLE_RELATIONSHIP
   FIRST_SIGNUP
-  
 }
 
 enum Role {

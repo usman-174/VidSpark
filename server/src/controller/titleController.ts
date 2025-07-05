@@ -3,7 +3,8 @@ import { Request, Response } from "express";
 import { generateTitle } from "../services/titleService";
 import { deductCredits } from "../services/userService";
 import { getUser } from "../services/authService";
-import { PrismaClient } from "@prisma/client";
+import { trackFeatureUsage, trackPopularContent } from "../services/statsService";
+import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -60,6 +61,9 @@ export const generateTitles = async (
   req: Request,
   res: Response
 ): Promise<any> => {
+  const startTime = Date.now();
+  let success = false;
+  
   try {
     const prompt = req.body.prompt || (req.query.prompt as string);
     const maxLength = parseInt(
@@ -71,11 +75,8 @@ export const generateTitles = async (
       process.env.TITLE_MODEL ||
       "deepseek/deepseek-chat-v3-0324:free";
 
-    // New parameter to control whether to include keywords
-
-    // New parameter to control whether to save titles to database
     const saveTitles =
-      req.body.saveTitles !== false && req.query.saveTitles !== "false"; // Default to true
+      req.body.saveTitles !== false && req.query.saveTitles !== "false";
 
     if (!prompt) {
       return res.status(400).json({
@@ -89,6 +90,14 @@ export const generateTitles = async (
 
     // Check for sufficient credits
     if (user.creditBalance < 1) {
+      await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+        userId: res.locals.user.userId,
+        processingTime: Date.now() - startTime,
+        success: false,
+        errorMessage: "Insufficient credits",
+        prompt: prompt.substring(0, 100)
+      });
+
       return res.status(403).json({
         success: false,
         message: "Insufficient credits to generate titles.",
@@ -102,11 +111,43 @@ export const generateTitles = async (
       model,
     });
 
-    // Deduct credits only if the operation was successful
     if (result.success) {
+      success = true;
+      const processingTime = Date.now() - startTime;
+      
       await deductCredits(res.locals.user.userId, 1);
 
-      // Save titles to database as a generation if requested
+      // Track successful title generation
+      await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+        userId: res.locals.user.userId,
+        processingTime,
+        success: true,
+        titleCount: result.titles?.length || 0,
+        model,
+        promptLength: prompt.length,
+        maxLength,
+        provider: result.provider
+      });
+
+      // Track popular prompts and generated titles
+      await trackPopularContent(ContentType.KEYWORD, prompt.substring(0, 200), {
+        titleCount: result.titles?.length || 0,
+        model,
+        provider: result.provider
+      });
+
+      // Track generated titles as popular content
+      if (result.titles && Array.isArray(result.titles)) {
+        for (const titleData of result.titles.slice(0, 3)) { // Track top 3 titles
+          const titleText = typeof titleData === 'string' ? titleData : titleData.title;
+          await trackPopularContent(ContentType.TITLE, titleText, {
+            fromPrompt: prompt.substring(0, 50),
+            model
+          });
+        }
+      }
+
+      // Save titles to database if requested
       if (saveTitles && result.titles && result.titles.length > 0) {
         try {
           const savedGeneration = await saveTitleGeneration(
@@ -115,18 +156,33 @@ export const generateTitles = async (
             result.titles,
             result.provider
           );
-
-          // Add the generation ID to the response
           result.generationId = savedGeneration.id;
         } catch (saveError) {
           console.error("Error saving title generation:", saveError);
-          // Continue with the response even if saving fails
         }
       }
+    } else {
+      // Track failed generation
+      await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+        userId: res.locals.user.userId,
+        processingTime: Date.now() - startTime,
+        success: false,
+        errorMessage: "Title generation failed",
+        model,
+        promptLength: prompt.length
+      });
     }
 
     return res.json(result);
   } catch (error) {
+    // Track error
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId: res.locals.user?.userId,
+      processingTime: Date.now() - startTime,
+      success: false,
+      errorMessage: error.message || "Unknown error"
+    });
+
     console.error("Error generating titles:", error);
     return res.status(500).json({
       success: false,
@@ -142,6 +198,8 @@ export const getUserTitleGenerations = async (
   req: Request,
   res: Response
 ): Promise<any> => {
+  const startTime = Date.now();
+  
   try {
     const userId = res.locals.user.userId;
     const page = parseInt((req.query.page as string) || "1");
@@ -164,6 +222,17 @@ export const getUserTitleGenerations = async (
       },
     });
 
+    // Track user accessing their generations
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId,
+      processingTime: Date.now() - startTime,
+      success: true,
+      isRetrieval: true,
+      generationsCount: generations.length,
+      totalGenerations: totalCount,
+      page
+    });
+
     return res.json({
       success: true,
       generations,
@@ -175,6 +244,14 @@ export const getUserTitleGenerations = async (
       },
     });
   } catch (error) {
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId: res.locals.user?.userId,
+      processingTime: Date.now() - startTime,
+      success: false,
+      isRetrieval: true,
+      errorMessage: error.message
+    });
+
     console.error("Error fetching title generations:", error);
     return res.status(500).json({
       success: false,
@@ -190,6 +267,8 @@ export const getTitleGenerationById = async (
   req: Request,
   res: Response
 ): Promise<any> => {
+  const startTime = Date.now();
+  
   try {
     const { id } = req.params;
     const userId = res.locals.user.userId;
@@ -197,7 +276,7 @@ export const getTitleGenerationById = async (
     const generation = await prisma.titleGeneration.findFirst({
       where: {
         id,
-        userId, // Ensure the user can only access their own generations
+        userId,
       },
       include: {
         titles: true,
@@ -205,17 +284,43 @@ export const getTitleGenerationById = async (
     });
 
     if (!generation) {
+      await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+        userId,
+        processingTime: Date.now() - startTime,
+        success: false,
+        isRetrieval: true,
+        errorMessage: "Generation not found",
+        generationId: id
+      });
+
       return res.status(404).json({
         success: false,
         message: "Title generation not found",
       });
     }
 
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId,
+      processingTime: Date.now() - startTime,
+      success: true,
+      isRetrieval: true,
+      generationId: id,
+      titlesCount: generation.titles.length
+    });
+
     return res.json({
       success: true,
       generation,
     });
   } catch (error) {
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId: res.locals.user?.userId,
+      processingTime: Date.now() - startTime,
+      success: false,
+      isRetrieval: true,
+      errorMessage: error.message
+    });
+
     console.error("Error fetching title generation:", error);
     return res.status(500).json({
       success: false,
@@ -230,6 +335,8 @@ export const toggleFavoriteTitle = async (
   req: Request,
   res: Response
 ): Promise<any> => {
+  const startTime = Date.now();
+  
   try {
     const { titleId } = req.params;
     const userId = res.locals.user.userId;
@@ -245,6 +352,15 @@ export const toggleFavoriteTitle = async (
     });
 
     if (!title) {
+      await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+        userId,
+        processingTime: Date.now() - startTime,
+        success: false,
+        isFavoriteAction: true,
+        errorMessage: "Title not found or access denied",
+        titleId
+      });
+
       return res.status(404).json({
         success: false,
         message: "Title not found or access denied",
@@ -257,11 +373,37 @@ export const toggleFavoriteTitle = async (
       data: { isFavorite: !title.isFavorite },
     });
 
+    // Track favorite action
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId,
+      processingTime: Date.now() - startTime,
+      success: true,
+      isFavoriteAction: true,
+      favoriteStatus: updatedTitle.isFavorite,
+      titleId
+    });
+
+    // Track popular favorited titles
+    if (updatedTitle.isFavorite) {
+      await trackPopularContent(ContentType.TITLE, updatedTitle.title, {
+        isFavorited: true,
+        userId
+      });
+    }
+
     return res.json({
       success: true,
       title: updatedTitle,
     });
   } catch (error) {
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId: res.locals.user?.userId,
+      processingTime: Date.now() - startTime,
+      success: false,
+      isFavoriteAction: true,
+      errorMessage: error.message
+    });
+
     console.error("Error toggling favorite status:", error);
     return res.status(500).json({
       success: false,
@@ -276,6 +418,8 @@ export const getFavoriteTitles = async (
   req: Request,
   res: Response
 ): Promise<any> => {
+  const startTime = Date.now();
+  
   try {
     const userId = res.locals.user.userId;
 
@@ -301,11 +445,27 @@ export const getFavoriteTitles = async (
       },
     });
 
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId,
+      processingTime: Date.now() - startTime,
+      success: true,
+      isFavoriteRetrieval: true,
+      favoriteTitlesCount: favoriteTitles.length
+    });
+
     return res.json({
       success: true,
       titles: favoriteTitles,
     });
   } catch (error) {
+    await trackFeatureUsage(FeatureType.TITLE_GENERATION, {
+      userId: res.locals.user?.userId,
+      processingTime: Date.now() - startTime,
+      success: false,
+      isFavoriteRetrieval: true,
+      errorMessage: error.message
+    });
+
     console.error("Error fetching favorite titles:", error);
     return res.status(500).json({
       success: false,

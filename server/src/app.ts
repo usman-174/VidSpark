@@ -1,26 +1,28 @@
-import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
-import morgan from "morgan";
 import dotenv from "dotenv";
+import express, { Express, NextFunction, Request, Response } from "express";
+import morgan from "morgan";
 
 // Local imports
-import { setUser, restrictTo } from "./middleware/authMiddleware";
+import { initializeCronJobs } from "./cron";
+import { restrictTo, setUser } from "./middleware/authMiddleware";
+import adminRouter from "./routes/adminRoutes";
 import authRoutes from "./routes/authRoutes";
+import {
+  default as ideaRoutes,
+  default as ideasRouter,
+} from "./routes/ideaRoutes";
 import invitationRoutes from "./routes/invitationRoutes";
-import uploadRoutes from "./routes/uploadRoute";
-import ytRouter from "./routes/ytRoutes";
+import keywordRoutes from "./routes/keywordRoutes";
+import packageRouter from "./routes/packageRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
 import policyRoutes from "./routes/policyRoutes";
 import titleRoutes from "./routes/titleRoutes";
-import keywordRoutes from "./routes/keywordRoutes";
-import ideaRoutes from "./routes/ideaRoutes";
-import newsRouter from "./routes/newsRouter";
-import adminRouter from "./routes/adminRoutes";
-import packageRouter from "./routes/packageRoutes";
+import uploadRoutes from "./routes/uploadRoute";
 import userRouter from "./routes/userRoutes";
-import ideasRouter from "./routes/ideaRoutes";
-import { initializeCronJobs } from "./cron";
-
+import ytRouter from "./routes/ytRoutes";
+import evaluationRouter from "./routes/evaluationRoutes";
+import userInsightsRouter from "./routes/userInsightsRoutes";
 // Load environment variables
 dotenv.config();
 
@@ -53,7 +55,7 @@ app.use(
 // ... (other code)
 
 // Start cron jobs
-initializeCronJobs();
+// initializeCronJobs();
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ message: "Server is running" });
@@ -73,7 +75,19 @@ app.use("/api/policies", setUser, restrictTo(["ADMIN"]), policyRoutes);
 app.use("/api/keywords", setUser, restrictTo(["USER"]), keywordRoutes);
 app.use("/api/ideas-today", setUser, restrictTo(["USER"]), ideaRoutes);
 app.use("/api/ideas", setUser, restrictTo(["USER"]), ideasRouter);
-app.use("/api/news", setUser, restrictTo(["USER"]), newsRouter);
+app.use(
+  "/api/user/insights",
+  setUser,
+  restrictTo(["USER", "ADMIN"]),
+  userInsightsRouter
+);
+
+app.use(
+  "/api/evaluation",
+  setUser,
+  restrictTo(["USER", "ADMIN"]),
+  evaluationRouter
+);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
