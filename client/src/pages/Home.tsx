@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPopularKeywords } from "@/lib/utils";
-import { Clock, TrendingUp, Activity, BarChart2, Zap } from "lucide-react";
+import { Clock, TrendingUp, Activity, BarChart2, Zap, Table } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,6 @@ const Home = () => {
       const response = await axiosInstance.get("/videos/trending");
       setTrendingVideos(response.data);
       setKeywords(getPopularKeywords(response.data.videos));
-
     } catch (error) {
       console.error("Error fetching trending videos:", error);
     } finally {
@@ -94,10 +93,12 @@ const Home = () => {
               <Button asChild>
                 <Link to="/sentimental-analysis">Sentiment Analysis</Link>
               </Button>
-            <Button asChild>
-  <Link to="/keyword-analysis">Keyword Analysis</Link>
-</Button>
-
+              <Button asChild>
+                <Link to="/keyword-analysis">Keyword Analysis</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/evaluation-matrix">Evaluation Matrix</Link>
+              </Button>
               <Button asChild>
                 <Link to="/packages">View Packages</Link>
               </Button>
@@ -172,7 +173,8 @@ const Home = () => {
 
         {/* Sidebar */}
         <div>
-          <Card className="h-fit">
+          {/* Popular Keywords */}
+          <Card className="h-fit mb-4">
             <CardHeader>
               <CardTitle className="text-lg">Popular Keywords</CardTitle>
               <CardDescription>Trending topics in recent videos</CardDescription>
@@ -197,13 +199,13 @@ const Home = () => {
               </ScrollArea>
             </CardContent>
           </Card>
+
+         
           <IdeasOfTheDay />
-  
         </div>
       </div>
     </div>
   );
 };
-
 
 export default Home;
