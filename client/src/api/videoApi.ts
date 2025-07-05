@@ -6,8 +6,12 @@ export interface Video {
   title: string;
   videoId: string;
   channelTitle: string;
+  uploadedAt: string;
+  duration: string;
   thumbnailLink: string;
   viewCount: number;
+  thumbnail?: string;
+  views?: number;
   likes?: number;
   commentCount?: number;
   publishedAt?: string;
