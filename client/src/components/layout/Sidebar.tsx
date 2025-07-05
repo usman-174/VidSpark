@@ -160,7 +160,14 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
       description: "Extract keywords",
       badge: "New"
     },
+    {
+      to: "/evaluation-matric", 
+      icon: Database, 
+      label: "Evaluation Matric", 
+      description: "Video performance metrics"
+    }
   ];
+
 
   const userAccountLinks = [
     { 
@@ -190,12 +197,12 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
       label: "Users", 
       description: "User management"
     },
-    { 
-      to: "/admin/videos", 
-      icon: Video, 
-      label: "Videos", 
-      description: "Content management"
-    },
+    // { 
+    //   to: "/admin/videos", 
+    //   icon: Video, 
+    //   label: "Videos", 
+    //   description: "Content management"
+    // },
     { 
       to: "/admin/packages", 
       icon: Package2, 
@@ -316,7 +323,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
 
       {/* Credits CTA for Users */}
       {!isAdmin && (
-        <div className="px-4 pb-4">
+        <div className="px-2 pb-2">
           <Separator className="mb-4 bg-teal-700/50" />
           <Link
             to="/packages"
@@ -328,7 +335,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
             <Package2 className="w-5 h-5" />
             {!isCollapsed && (
               <div className="flex-1">
-                <div className="text-sm font-bold">Upgrade Now</div>
+          
                 <div className="text-xs opacity-90">Get more credits</div>
               </div>
             )}
