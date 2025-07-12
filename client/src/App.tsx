@@ -1,4 +1,24 @@
 import Register from "@/pages/Register";
+import { Loader2 } from "lucide-react";
+import { Navigate, Outlet } from "react-router-dom";
+import { RootLayout } from "./components/layout/RootLayout";
+import { AdminDashboard } from "./pages/Admin/AdminDashboard";
+import { AdminPolicyPage } from "./pages/Admin/AdminPolicy";
+import PackagesPage from "./pages/Admin/Packages";
+import AdminPayments from "./pages/Admin/Payments";
+import UsersPage from "./pages/Admin/Users";
+import YTVideos from "./pages/Admin/YTVideos";
+import ArchitectureDiagram from "./pages/ArchitectureDiagram";
+import EmailVerification from "./pages/emailVerification";
+import EvaluationMatric from "./pages/EvaluationMatric";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import Landing from "./pages/Landing";
+import Packages from "./pages/Packages";
+import PaymentHistory from "./pages/payments/History";
+import Profile from "./pages/Profile";
+import { ResetPassword } from "./pages/ResetPassword";
+import SentimentAnalysis from "./pages/SentimentalAnalysis";
+import { UserDashboard } from "./pages/UserDashboard";
 import TitleGeneration from "@/pages/TitleGeneration";
 import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
@@ -7,6 +27,7 @@ import Home from "./pages/Home";
 import KeywordAnalysis from "./pages/KeywordAnalysis";
 import Login from "./pages/Login";
 import useAuthStore from "./store/authStore";
+
 // import ArchitectureDiagram from ";
 function App() {
   const { isLoading } = useAuthStore();
@@ -85,26 +106,7 @@ function App() {
 export default App;
 
 // components/ProtectedRoute.tsx
-import { Loader2 } from "lucide-react";
-import { Navigate, Outlet } from "react-router-dom";
-import { RootLayout } from "./components/layout/RootLayout";
-import { AdminDashboard } from "./pages/Admin/AdminDashboard";
-import { AdminPolicyPage } from "./pages/Admin/AdminPolicy";
-import PackagesPage from "./pages/Admin/Packages";
-import AdminPayments from "./pages/Admin/Payments";
-import UsersPage from "./pages/Admin/Users";
-import YTVideos from "./pages/Admin/YTVideos";
-import EmailVerification from "./pages/emailVerification";
-import EvaluationMatric from "./pages/EvaluationMatric";
-import { ForgotPassword } from "./pages/ForgotPassword";
-import Landing from "./pages/Landing";
-import Packages from "./pages/Packages";
-import PaymentHistory from "./pages/payments/History";
-import Profile from "./pages/Profile";
-import { ResetPassword } from "./pages/ResetPassword";
-import SentimentAnalysis from "./pages/SentimentalAnalysis";
-import { UserDashboard } from "./pages/UserDashboard";
-import ArchitectureDiagram from "./pages/ArchitectureDiagram";
+
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];

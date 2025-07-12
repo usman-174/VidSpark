@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Video } from "@/api/videoApi";
 import { Link } from "react-router-dom";
 import { Clock, TrendingUp, Eye, ExternalLink } from "lucide-react";
+import IdeasOfTheDay from "./IdeasOfTheDay";
 
 interface TrendingContentProps {
   trendingVideos: any;
@@ -121,9 +122,11 @@ const TrendingContent = ({ trendingVideos, keywords, isLoading }: TrendingConten
           </CardContent>
         </Card>
       </div>
-
+            <div className="w-full max-w-md">
+            <IdeasOfTheDay />
+          </div>
       {/* Popular Keywords */}
-      <div>
+      {/* <div>
         <Card className="h-fit">
           <CardHeader>
             <CardTitle className="text-lg">Popular Keywords</CardTitle>
@@ -154,7 +157,7 @@ const TrendingContent = ({ trendingVideos, keywords, isLoading }: TrendingConten
             </ScrollArea>
           </CardContent>
         </Card>
-      </div>
+      </div> */}
     </div>
   );
 };

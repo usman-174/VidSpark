@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import axiosInstance from "@/api/axiosInstance";
 import { Video } from "@/api/videoApi";
-import { userInsightsAPI, DashboardInsights, UserRecommendations } from "@/api/userInsightsApi";
+import {
+  userInsightsAPI,
+  DashboardInsights,
+  UserRecommendations,
+} from "@/api/userInsightsApi";
 import { getPopularKeywords } from "@/lib/utils";
 
 // Components
@@ -17,17 +21,19 @@ const Home = () => {
   const [trendingVideos, setTrendingVideos] = useState<any>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [insights, setInsights] = useState<DashboardInsights | null>(null);
-  const [recommendations, setRecommendations] = useState<UserRecommendations | null>(null);
+  const [recommendations, setRecommendations] =
+    useState<UserRecommendations | null>(null);
   const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [isLoadingInsights, setIsLoadingInsights] = useState(true);
-  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] =
+    useState(true);
 
   useEffect(() => {
     // Load all data on component mount
     Promise.all([
       fetchTrendingVideos(),
       fetchDashboardInsights(),
-      fetchRecommendations()
+      fetchRecommendations(),
     ]);
   }, []);
 
@@ -76,39 +82,28 @@ const Home = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
         {/* Welcome Header */}
-        <WelcomeHeader 
-          insights={insights} 
-          isLoading={isLoadingInsights} 
-        />
+        <WelcomeHeader insights={insights} isLoading={isLoadingInsights} />
 
         {/* Quick Actions */}
         <QuickActions />
         {/* Personalized Recommendations */}
-        <Recommendations 
+        <Recommendations
           recommendations={recommendations}
           isLoading={isLoadingRecommendations}
         />
         {/* Insights Overview */}
-        <InsightsOverview 
-          insights={insights} 
-          isLoading={isLoadingInsights} 
-        />
+        <InsightsOverview insights={insights} isLoading={isLoadingInsights} />
 
-        
-
-
-{/* Trending Content & Keywords */}
-        <TrendingContent 
+        {/* Trending Content & Keywords */}
+        <TrendingContent
           trendingVideos={trendingVideos}
           keywords={keywords}
           isLoading={isLoadingVideos}
         />
         {/* Ideas of the Day */}
-        {/* <div className="flex justify-center">
-          <div className="w-full max-w-md">
-            <IdeasOfTheDay />
-          </div>
-        </div> */}
+      
+          
+       
       </div>
     </div>
   );

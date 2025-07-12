@@ -224,7 +224,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl space-y-6">
+    <div className="container mx-auto p-6 max-w-5xl space-y-6">
       {/* Profile Card */}
       <ProfileCard user={user!} />
 
