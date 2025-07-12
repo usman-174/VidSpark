@@ -22,12 +22,12 @@ import { motion } from "framer-motion";
 import useAuthStore from "@/store/authStore";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "react-hot-toast";
 import FavoriteTitlesModal from "@/components/ui/TitleGeneration/FavouriteTitlesModal";
-import { 
-  useGenerateTitles, 
-  useTitleGeneration, 
-  useToggleFavorite 
+import {
+  useGenerateTitles,
+  useTitleGeneration,
+  useToggleFavorite
 } from "@/hooks/useTitleGeneration";
 
 // Interface for title with keywords
@@ -47,7 +47,7 @@ const TitleGeneration = () => {
   const toggleFavoriteMutation = useToggleFavorite();
 
   // Local state
-  const [prompt, setPrompt] = useState("");
+  const [keywords, setKeywords] = useState("");
   const [generatedTitles, setGeneratedTitles] = useState<GeneratedTitle[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
@@ -106,15 +106,23 @@ const TitleGeneration = () => {
     }
   };
 
+  const validateKeywords = (input: string): boolean => {
+    const keywordArray = input.split(',').map(k => k.trim()).filter(k => k);
+    return keywordArray.length >= 3 && keywordArray.length <= 5;
+  };
+
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+
+    const keywordArray = keywords.split(',').map(k => k.trim()).filter(k => k);
+
+    if (!validateKeywords(keywords)) {
+      toast.error("Please enter 3-5 keywords, separated by commas.");
+      return;
+    }
 
     if (user?.creditBalance === 0) {
-      toast({
-        title: "Insufficient credits",
-        description: "You need credits to generate titles.",
-        variant: "destructive",
-      });
+  
+      toast.error("You have no credits left. Please purchase more to generate titles.");
       return;
     }
 
@@ -124,7 +132,7 @@ const TitleGeneration = () => {
 
     try {
       const result = await generateTitlesMutation.mutateAsync({
-        prompt: prompt.trim(),
+        prompt: keywordArray.join(", "), // Send keywords as prompt
         includeKeywords: true,
       });
 
@@ -132,17 +140,14 @@ const TitleGeneration = () => {
 
       if (extractedTitles.length > 0) {
         setGeneratedTitles(extractedTitles);
-        
+
         // Set the generation ID to trigger fetching detailed data
         if (result.generationId) {
           setCurrentGenerationId(result.generationId);
         }
       } else {
-        toast({
-          title: "No titles generated",
-          description: "Could not generate titles. Please try again.",
-          variant: "destructive",
-        });
+        toast.error("No titles generated. Please try different keywords.");
+        setGeneratedTitles([]);
       }
     } catch (error) {
       // Error is already handled by the mutation's onError
@@ -162,13 +167,9 @@ const TitleGeneration = () => {
 
   const handleToggleFavorite = async (index: number) => {
     const titleId = savedTitleIds[index];
-    
+
     if (!titleId) {
-      toast({
-        title: "Cannot favorite this title",
-        description: "This title hasn't been saved to the database yet.",
-        variant: "destructive",
-      });
+      toast.error("This title cannot be favorited.");
       return;
     }
 
@@ -181,8 +182,8 @@ const TitleGeneration = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !generateTitlesMutation.isPending && prompt.trim()) {
+  const handleKeyPress = (e: any) => {
+    if (e.key === "Enter" && !generateTitlesMutation.isPending && validateKeywords(keywords)) {
       handleGenerate();
     }
   };
@@ -218,16 +219,16 @@ const TitleGeneration = () => {
           <CardContent className="space-y-6 pt-6">
             <div className="space-y-3">
               <Label
-                htmlFor="prompt"
+                htmlFor="keywords"
                 className="text-sm font-medium text-gray-700"
               >
-                What is your video about?
+                Enter 3-5 keywords (comma-separated)
               </Label>
               <Input
-                id="prompt"
-                placeholder="e.g., A beginner's guide to creating Instagram Reels that go viral"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                id="keywords"
+                placeholder="e.g., Instagram Reels, viral videos, beginner guide, social media, content creation"
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
                 onKeyPress={handleKeyPress}
                 className="border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg"
               />
@@ -235,7 +236,7 @@ const TitleGeneration = () => {
 
             <Button
               onClick={handleGenerate}
-              disabled={generateTitlesMutation.isPending || !prompt.trim()}
+              disabled={generateTitlesMutation.isPending || !validateKeywords(keywords)}
               className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center"
             >
               {generateTitlesMutation.isPending ? (
@@ -338,11 +339,10 @@ const TitleGeneration = () => {
                         {/* Favorite button - only show if we have saved title IDs */}
                         {savedTitleIds[index] && (
                           <button
-                            className={`ml-2 flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                              favoriteStatus[index]
+                            className={`ml-2 flex-shrink-0 p-1.5 rounded-full transition-colors ${favoriteStatus[index]
                                 ? "text-red-500 hover:text-red-700 bg-red-50"
                                 : "text-gray-400 hover:text-red-500 hover:bg-red-50"
-                            }`}
+                              }`}
                             onClick={() => handleToggleFavorite(index)}
                             disabled={toggleFavoriteMutation.isPending}
                             title={
@@ -351,14 +351,13 @@ const TitleGeneration = () => {
                                 : "Add to favorites"
                             }
                           >
-                            {toggleFavoriteMutation.isPending && 
-                             toggleFavoriteMutation.variables === savedTitleIds[index] ? (
+                            {toggleFavoriteMutation.isPending &&
+                              toggleFavoriteMutation.variables === savedTitleIds[index] ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Heart
-                                className={`h-4 w-4 ${
-                                  favoriteStatus[index] ? "fill-current" : ""
-                                }`}
+                                className={`h-4 w-4 ${favoriteStatus[index] ? "fill-current" : ""
+                                  }`}
                               />
                             )}
                           </button>

@@ -448,7 +448,7 @@ export async function generateTitle({
         success: false,
         titles: generateEnhancedFallbackTitles(prompt),
         provider: "fallback",
-        error: `Both AI services failed. Ollama: ${ollamaError.message}. OpenRouter: ${openRouterError.message}`,
+        error: `Service is Currently unavailable. Try again later.`,
       };
     }
   }

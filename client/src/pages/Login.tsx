@@ -47,37 +47,51 @@ const Login: React.FC = () => {
       const role = response.data.user.role;
       console.log("User Role:", role);
       
-      // ✅ Check if user is verified
+      // ✅ Check if user is verified (improved logic)
       if (!response.data.user.isVerified && role !== "ADMIN") {
         toast.error("Please verify your email first. Check your inbox for verification code.");
-        navigate("/verify-email", { state: { email: values.email } });
+        // Don't call login() if user is not verified
+        // Pass email as URL parameter to ensure it persists
+        navigate(`/verify-email?email=${encodeURIComponent(values.email)}`, { 
+          replace: true, // Use replace to avoid back button issues
+          state: { email: values.email } 
+        });
         return;
       }
 
-      // ✅ Successful login logic
+      // ✅ Successful login logic - only if user is verified
       login(response.data.token, response.data.user);
       toast.success("Login successful!");
 
       if (response.data.user.role === "ADMIN") {
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       } else {
-        navigate("/");
+        navigate("/", { replace: true });
       }
 
     } catch (error: any) {
-   
+      console.error("Login error:", error);
+      
       // ✅ Handle case where backend says 'not verified'
       if (error.response?.data?.error?.includes("not verified")) {
         toast.error("Please verify your email first. Check your inbox for verification code.");
-        navigate("/verify-email", { state: { email: values.email } });
+        // Don't call login() if user is not verified
+        navigate(`/verify-email?email=${encodeURIComponent(values.email)}`, { 
+          replace: true,
+          state: { email: values.email } 
+        });
         return;
       }
 
-      if (error.response?.status === 401) {
+      // ✅ Handle other authentication errors
+      if (error.response?.status === 400) {
         form.setError("password", {
           type: "manual",
           message: "Invalid email or password",
         });
+        toast.error("Invalid email or password");
+      } else {
+        toast.error("Login failed. Please try again.");
       }
     } finally {
       setLoading(false);

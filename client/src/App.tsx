@@ -124,6 +124,8 @@ const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
 
 export const AuthRoute = () => {
   const { isAuthenticated, user } = useAuthStore();
+  console.log("AuthRoute - User:", user);
+  
   return isAuthenticated ? (
     <Navigate to={user?.role === "ADMIN" ? "/admin" : "/"} />
   ) : (

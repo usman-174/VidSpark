@@ -31,7 +31,9 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const { user, token } = await login(email, password);
     res.status(200).json({ message: "Login successful", token, user });
   } catch (error: any) {
-    res.status(401).json({ error: error.message });
+    console.log("error:",error.message);
+
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -42,6 +44,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     await resetPasswordService(email, newPassword);
     res.status(200).json({ message: "Password reset successfully" });
   } catch (error: any) {
+    
     res.status(400).json({ error: error.message });
   }
 };

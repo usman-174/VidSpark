@@ -1,14 +1,97 @@
-import { Request, Response } from "express";
-import { initializeDependencies } from "../utils/dependencies";
-import * as youtubeService from "../services/ytService";
-import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
 import axios from "axios";
+import { Request, Response } from "express";
 import { TfIdf } from "natural";
-import vader from "vader-sentiment";
+import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
+import { incrementFeatureUsage, trackFeatureUsage } from "../services/statsService";
 import { deductCredits } from "../services/userService";
-import { incrementFeatureUsage } from "../services/statsService";
+import * as youtubeService from "../services/ytService";
+import { initializeDependencies } from "../utils/dependencies";
+import { FeatureType } from "@prisma/client";
+
+const PYTHON_API_BASE_URL = process.env.PYTHON_API_URL || "http://localhost:7000";
+
+// Data preprocessing utilities
+const cleanText = (text: string): string => {
+  if (!text) return "";
+
+  return text
+    // Remove URLs
+    .replace(/(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi, '')
+    // Remove email addresses
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Remove excessive whitespace and newlines
+    .replace(/\s+/g, ' ')
+    // Remove special characters but keep basic punctuation
+    .replace(/[^\w\s.,!?;:'"()-]/g, '')
+    // Remove excessive punctuation
+    .replace(/[.]{2,}/g, '.')
+    .replace(/[!]{2,}/g, '!')
+    .replace(/[?]{2,}/g, '?')
+    // Trim whitespace
+    .trim();
+};
+
+const preprocessTags = (tags: string[]): string => {
+  if (!tags || tags.length === 0) return "";
+
+  return tags
+    .map(tag => tag.toLowerCase().trim())
+    .filter(tag => tag.length > 0)
+    .join(' ');
+};
+
+const isValidComment = (comment: string): boolean => {
+  if (!comment || comment.length < 3) return false;
+
+  // Filter out comments that are mostly emojis or special characters
+  const alphanumericCount = (comment.match(/[a-zA-Z0-9]/g) || []).length;
+  const totalLength = comment.length;
+
+  // If less than 30% of the comment is alphanumeric, consider it invalid
+  return (alphanumericCount / totalLength) >= 0.3;
+};
+
+// // Function to call Python API for sentiment analysis
+// const callPythonSentimentAPI = async (text: string): Promise<any> => {
+//   try {
+//     const response = await axios.post(`${PYTHON_API_BASE_URL}/sentiment`, {
+//       text: text
+//     }, {
+//       timeout: 30000, // 30 second timeout
+//       headers: {
+//         'Content-Type': 'application/json'
+//       }
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error('Error calling Python sentiment API:', error.message);
+//     throw new Error(`Sentiment analysis failed: ${error.message}`);
+//   }
+// };
+
+// Function to call Python API for batch sentiment analysis
+const callPythonBatchSentimentAPI = async (texts: string[]): Promise<any> => {
+  try {
+    const response = await axios.post(`${PYTHON_API_BASE_URL}/batch-sentiment`, {
+      texts: texts
+    }, {
+      timeout: 60000, // 60 second timeout for batch processing
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error calling Python batch sentiment API:', error.message);
+    throw new Error(`Batch sentiment analysis failed: ${error.message}`);
+  }
+};
 
 export const analyzeVideoSentiment = async (req: Request, res: Response): Promise<any> => {
+  const startTime = Date.now();
+
   try {
     await loadKeysFromDB();
     const { prisma } = await initializeDependencies();
@@ -19,134 +102,252 @@ export const analyzeVideoSentiment = async (req: Request, res: Response): Promis
       return res.status(400).json({ error: "Missing video ID." });
     }
 
-    // Get video details to include title in response
+    // Get video details
     const YOUTUBE_API_KEY = getNextApiKey();
     const YOUTUBE_VIDEO_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`;
     const videoResponse = await axios.get(YOUTUBE_VIDEO_URL);
-    const videoTitle = videoResponse.data.items[0]?.snippet?.title || "";
+
+    const videoData = videoResponse.data.items[0];
+    if (!videoData) {
+      return res.status(404).json({ error: "Video not found." });
+    }
+
+    const videoTitle = videoData.snippet?.title || "";
+    const videoDescription = videoData.snippet?.description || "";
+    const videoTags = videoData.snippet?.tags || [];
+
+    // Clean video metadata
+    const cleanTitle = cleanText(videoTitle);
+    const cleanDescription = cleanText(videoDescription);
+    const cleanTagsText = preprocessTags(videoTags);
 
     // Get comments
     const YOUTUBE_COMMENTS_URL = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=400&key=${YOUTUBE_API_KEY}`;
-    const response = await axios.get(YOUTUBE_COMMENTS_URL);
+    const commentsResponse = await axios.get(YOUTUBE_COMMENTS_URL);
 
-    // Extract comments but filter out those containing links
-    const allComments = response.data.items.map(
+    // Extract and clean comments
+    const allComments = commentsResponse.data.items.map(
       (item: any) => item.snippet.topLevelComment.snippet.textDisplay
     );
 
-    const urlRegex =
-      /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
+    // Filter and clean comments
+    const validComments = allComments
+      .map(comment => cleanText(comment))
+      .filter(comment => isValidComment(comment));
 
-    const comments = allComments.filter((comment) => !urlRegex.test(comment));
+    console.log(`Processed ${allComments.length} comments, ${validComments.length} valid after cleaning`);
 
-    console.log(
-      `Filtered ${allComments.length - comments.length} comments with links out of ${allComments.length} total comments`
-    );
-
-    if (!comments.length) {
-      return res
-        .status(404)
-        .json({ error: "No valid comments found after filtering." });
+    if (!validComments.length) {
+      return res.status(404).json({
+        error: "No valid comments found after preprocessing.",
+        stats: {
+          totalCommentsReceived: allComments.length,
+          validCommentsAfterCleaning: 0
+        }
+      });
     }
 
-    const NEUTRAL_THRESHOLD = 0.05;
-    const NEUTRAL_REDISTRIBUTION_FACTOR = 0.7;
+    // Prepare data for Python API sentiment analysis
+    const metadataTexts = [];
+    const metadataLabels = [];
 
-    const sentimentScores = comments.map((comment: string) => {
-      const sentimentResult =
-        vader.SentimentIntensityAnalyzer.polarity_scores(comment);
+    // Add video metadata for analysis
+    if (cleanTitle) {
+      metadataTexts.push(cleanTitle);
+      metadataLabels.push('title');
+    }
+    if (cleanDescription) {
+      metadataTexts.push(cleanDescription);
+      metadataLabels.push('description');
+    }
+    if (cleanTagsText) {
+      metadataTexts.push(cleanTagsText);
+      metadataLabels.push('tags');
+    }
 
-      let sentiment: "positive" | "negative" | "neutral";
+    // Analyze sentiment for video metadata using Python API
+    console.log('Analyzing metadata sentiment...');
+    const metadataSentimentResponse = await callPythonBatchSentimentAPI(metadataTexts);
+    const metadataSentiments = metadataSentimentResponse.results || [];
 
-      if (sentimentResult.neu > 0.5) {
-        const posnegDiff = Math.abs(sentimentResult.pos - sentimentResult.neg);
-
-        if (posnegDiff >= NEUTRAL_THRESHOLD) {
-          sentiment =
-            sentimentResult.pos > sentimentResult.neg ? "positive" : "negative";
-
-          const adjustment = sentimentResult.neu * NEUTRAL_REDISTRIBUTION_FACTOR;
-          sentimentResult.neu -= adjustment;
-
-          if (sentiment === "positive") {
-            sentimentResult.pos += adjustment;
-          } else {
-            sentimentResult.neg += adjustment;
-          }
-        } else {
-          sentiment = "neutral";
-        }
-      } else {
-        sentiment =
-          sentimentResult.compound >= 0.05
-            ? "positive"
-            : sentimentResult.compound <= -0.05
-            ? "negative"
-            : "neutral";
+    // Create metadata sentiment object
+    const videoMetadata: any = {
+      title: {
+        original: videoTitle,
+        cleaned: cleanTitle,
+        sentiment: null
+      },
+      description: {
+        original: videoDescription.substring(0, 200) + (videoDescription.length > 200 ? "..." : ""),
+        cleaned: cleanDescription.substring(0, 200) + (cleanDescription.length > 200 ? "..." : ""),
+        sentiment: null
+      },
+      tags: {
+        original: videoTags,
+        processed: cleanTagsText,
+        sentiment: null
       }
+    };
 
-      return {
-        comment,
-        ...sentimentResult,
-        sentiment,
-      };
+    // Map sentiment results to metadata
+    metadataSentiments.forEach((sentiment: any, index: number) => {
+      const label = metadataLabels[index];
+      if (label === 'title') {
+        videoMetadata.title.sentiment = sentiment;
+      } else if (label === 'description') {
+        videoMetadata.description.sentiment = sentiment;
+      } else if (label === 'tags') {
+        videoMetadata.tags.sentiment = sentiment;
+      }
     });
 
-    const overallSentiment = sentimentScores.reduce(
-      (acc, curr) => {
-        acc.positive += curr.pos;
-        acc.neutral += curr.neu;
-        acc.negative += curr.neg;
-        return acc;
-      },
-      { positive: 0, neutral: 0, negative: 0 }
-    );
+    // Analyze sentiment for comments using Python API (batch processing)
+    console.log('Analyzing comments sentiment...');
+    const commentsBatchSize = 100;
+    const commentSentimentScores = [];
 
-    const total = sentimentScores.length;
-    overallSentiment.positive /= total;
-    overallSentiment.neutral /= total;
-    overallSentiment.negative /= total;
+    for (let i = 0; i < validComments.length; i += commentsBatchSize) {
+      const batch = validComments.slice(i, i + commentsBatchSize);
+      const batchResponse = await callPythonBatchSentimentAPI(batch);
+      const batchResults = batchResponse.results || [];
+
+      batch.forEach((comment, index) => {
+        if (batchResults[index]) {
+          commentSentimentScores.push({
+            comment: comment,
+            sentiment: batchResults[index].sentiment,
+            confidence: batchResults[index].confidence || 0,
+            scores: batchResults[index].scores || {}
+          });
+        }
+      });
+    }
+
+    // Calculate overall sentiment from comments
+    const sentimentCounts = {
+      positive: 0,
+      negative: 0,
+      neutral: 0
+    };
+
+    commentSentimentScores.forEach(item => {
+      sentimentCounts[item.sentiment as keyof typeof sentimentCounts]++;
+    });
+
+    const total = commentSentimentScores.length;
+    const overallCommentSentiment = {
+      positive: sentimentCounts.positive / total,
+      neutral: sentimentCounts.neutral / total,
+      negative: sentimentCounts.negative / total,
+      totalAnalyzed: total,
+      breakdown: sentimentCounts
+    };
+
+    // Calculate weighted overall sentiment
+    const metadataWeight = 0.3;
+    const commentsWeight = 0.7;
+
+    const validMetadataSentiments = metadataSentiments.filter(s => s && s.sentiment);
+    const metadataSentimentCounts = {
+      positive: 0,
+      negative: 0,
+      neutral: 0
+    };
+
+    validMetadataSentiments.forEach(item => {
+      metadataSentimentCounts[item.sentiment as keyof typeof metadataSentimentCounts]++;
+    });
+
+    const metadataTotal = validMetadataSentiments.length;
+    const metadataAverageSentiment = metadataTotal > 0 ? {
+      positive: metadataSentimentCounts.positive / metadataTotal,
+      neutral: metadataSentimentCounts.neutral / metadataTotal,
+      negative: metadataSentimentCounts.negative / metadataTotal
+    } : { positive: 0, neutral: 1, negative: 0 };
+
+    const weightedOverallSentiment = {
+      positive: (metadataAverageSentiment.positive * metadataWeight) + (overallCommentSentiment.positive * commentsWeight),
+      neutral: (metadataAverageSentiment.neutral * metadataWeight) + (overallCommentSentiment.neutral * commentsWeight),
+      negative: (metadataAverageSentiment.negative * metadataWeight) + (overallCommentSentiment.negative * commentsWeight)
+    };
+
+    const overallSentimentLabel =
+      weightedOverallSentiment.positive > weightedOverallSentiment.negative && weightedOverallSentiment.positive > weightedOverallSentiment.neutral ? 'positive' :
+        weightedOverallSentiment.negative > weightedOverallSentiment.positive && weightedOverallSentiment.negative > weightedOverallSentiment.neutral ? 'negative' :
+          'neutral';
 
     const stats = {
       totalCommentsReceived: allComments.length,
-      commentsWithLinks: allComments.length - comments.length,
-      commentsAnalyzed: comments.length,
+      invalidCommentsFiltered: allComments.length - validComments.length,
+      validCommentsAnalyzed: validComments.length,
+      titleLength: cleanTitle.length,
+      descriptionLength: cleanDescription.length,
+      tagsCount: videoTags.length,
+      processingComplete: true,
+      apiProvider: 'Python Transformers',
+      processingTime: Date.now() - startTime
     };
+    console.log("Sentiment analysis complete:", stats);
 
-    // ✅ Save to database
+    // Save to sentimentalAnalysis table
     await prisma.sentimentalAnalysis.create({
       data: {
         userId: user.userId,
         videoId: videoId as string,
-        positive: overallSentiment.positive,
-        neutral: overallSentiment.neutral,
-        negative: overallSentiment.negative,
+        positive: weightedOverallSentiment.positive,
+        neutral: weightedOverallSentiment.neutral,
+        negative: weightedOverallSentiment.negative,
       },
     });
 
-    // ✅ Deduct credit
+    // Track feature usage
+    await trackFeatureUsage(FeatureType.SENTIMENT_ANALYSIS, {
+      userId: user.userId,
+      videoId,
+      totalCommentsAnalyzed: validComments.length,
+      processingTime: stats.processingTime,
+      success: true,
+      titleLength: cleanTitle.length,
+      descriptionLength: cleanDescription.length,
+      tagsCount: videoTags.length
+    });
+
+    // Deduct credit
     await deductCredits(user.userId, 1);
 
-    // ✅ Increment feature usage
-    await incrementFeatureUsage("sentiment_analysis");
-
     res.status(200).json({
-      overallSentiment,
-      sentimentScores,
       videoTitle,
+      videoMetadata,
+      commentsSentiment: {
+        overall: overallCommentSentiment,
+        individual: commentSentimentScores.slice(0, 10),
+        totalAnalyzed: commentSentimentScores.length
+      },
+      weightedOverallSentiment: {
+        ...weightedOverallSentiment,
+        label: overallSentimentLabel
+      },
       stats,
     });
   } catch (error: any) {
-    console.error(
-      "Error analyzing sentiment:",
-      error.response?.data || error.message
-    );
+    console.error("Error analyzing sentiment:", error.response?.data || error.message);
+
+    // Track failed feature usage
+    await trackFeatureUsage(FeatureType.SENTIMENT_ANALYSIS, {
+      userId: res.locals.user.userId,
+
+      error: error.message,
+      processingTime: Date.now() - startTime,
+      success: false
+    });
+
     res.status(500).json({
       error: "Failed to analyze sentiment.",
       message: error.response?.data?.error?.message || error.message,
     });
   }
 };
+
 // Helper function to get representative comment examples for each sentiment
 
 // Cache object and duration (in milliseconds)

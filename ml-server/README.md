@@ -18,12 +18,6 @@ python -m venv venv
 venv\Scripts\activate
 ```
 
-> For macOS/Linux:
-> ```bash
-> python3 -m venv venv
-> source venv/bin/activate
-> ```
-
 ### 3. Install Dependencies
 
 ```bash
@@ -33,5 +27,5 @@ pip install -r requirements.txt
 ### 4. Run the Server
 
 ```bash
-python -m uvicorn server:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn server:app --reload --host 0.0.0.0 --port 7000
 ```
