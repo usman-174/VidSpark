@@ -469,4 +469,5 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     logger.info("[STARTUP] Running dev server...")
-    uvicorn.run("server:app", host="0.0.0.0", port=7000, reload=True, log_config=None)
+    # uvicorn.run("server:app", host="0.0.0.0", port=7000, reload=True, log_config=None)
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.getenv("PORT", 10000)))

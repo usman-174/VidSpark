@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-   "client": "cd client && npm run dev",
+    "client": "cd client && npm run dev",
     "server": "cd server && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
@@ -21,6 +21,7 @@
   "homepage": "https://github.com/usman-174/VidSpark#readme",
   "description": "",
   "devDependencies": {
+    "@types/hpp": "^0.2.6",
     "concurrently": "^9.1.2"
   }
 }
