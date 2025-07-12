@@ -7,7 +7,7 @@ import Home from "./pages/Home";
 import KeywordAnalysis from "./pages/KeywordAnalysis";
 import Login from "./pages/Login";
 import useAuthStore from "./store/authStore";
-
+// import ArchitectureDiagram from ";
 function App() {
   const { isLoading } = useAuthStore();
   useEffect(() => {
@@ -32,6 +32,7 @@ function App() {
       <Toaster position="bottom-right" />
 
       <Routes>
+        <Route path="/arc" element={<ArchitectureDiagram />}/>
         {/* Public routes */}
         <Route element={<AuthRoute />}>
           <Route path="/login" element={<Login />} />
@@ -103,6 +104,7 @@ import Profile from "./pages/Profile";
 import { ResetPassword } from "./pages/ResetPassword";
 import SentimentAnalysis from "./pages/SentimentalAnalysis";
 import { UserDashboard } from "./pages/UserDashboard";
+import ArchitectureDiagram from "./pages/ArchitectureDiagram";
 
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];
