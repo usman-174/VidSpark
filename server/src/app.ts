@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import xss from "xss-clean";
+
 import hpp from "hpp";
 import rateLimit from "express-rate-limit";
 
@@ -42,7 +42,6 @@ const PORT = process.env.PORT || 5000;
 
 // Security Middleware
 app.use(helmet());
-app.use(xss());
 app.use(hpp());
 
 // JSON & Logging Middleware
