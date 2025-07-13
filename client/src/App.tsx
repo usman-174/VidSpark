@@ -8,7 +8,7 @@ import PackagesPage from "./pages/Admin/Packages";
 import AdminPayments from "./pages/Admin/Payments";
 import UsersPage from "./pages/Admin/Users";
 import YTVideos from "./pages/Admin/YTVideos";
-import ArchitectureDiagram from "./pages/ArchitectureDiagram";
+import ArchitectureDiagram from "./pages/Architecture";
 import EmailVerification from "./pages/emailVerification";
 import EvaluationMatric from "./pages/EvaluationMatric";
 import { ForgotPassword } from "./pages/ForgotPassword";
@@ -53,7 +53,9 @@ function App() {
       <Toaster position="bottom-right" />
 
       <Routes>
+        <Route path="/arcx" element={<ArchitectureDiagram />}/>
         <Route path="/arc" element={<ArchitectureDiagram />}/>
+
         {/* Public routes */}
         <Route element={<AuthRoute />}>
           <Route path="/login" element={<Login />} />
