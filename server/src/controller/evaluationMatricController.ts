@@ -7,6 +7,7 @@ import {
   updateFavoriteFeature,
 } from "../services/statsService";
 import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
+import { deductCredits } from "../services/userService";
 
 interface PredictionRequest {
   title: string;
@@ -404,7 +405,7 @@ export class EvaluationMetricController {
 
         processingTime
       );
-
+       await deductCredits(res.locals.user.userId, 1);
       // Track successful analysis with detailed insights
       await trackFeatureUsage(FeatureType.EVALUATION_METRIC, {
         userId,

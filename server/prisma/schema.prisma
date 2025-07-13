@@ -29,11 +29,11 @@ model User {
   creditBalance         Int                   @default(0)
   credits               Credit[]
   sentInvitations       Invitation[]          @relation("UserInvitations")
-  parent                User?                 @relation("ParentOf", fields: [parentId], references: [id])
+  parent                User?                 @relation("ParentOf", fields: [parentId], references: [id], onDelete: SetNull)
   children              User[]                @relation("ParentOf")
   payments              Payment[]
   SentimentalAnalysis   SentimentalAnalysis[]
-  titleGenerations      TitleGeneration[] // Add this line
+  titleGenerations      TitleGeneration[]
   keywordAnalyses       KeywordAnalysis[]
 
   FeatureUsageLog  FeatureUsageLog[]
@@ -288,7 +288,7 @@ model Invitation {
   isUsed       Boolean  @default(false)
   expiresAt    DateTime @default(dbgenerated("(NOW() + INTERVAL '1 hour')"))
   createdAt    DateTime @default(now())
-  inviter      User     @relation("UserInvitations", fields: [inviterId], references: [id])
+  inviter      User     @relation("UserInvitations", fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@index([inviterId])
 }
@@ -310,7 +310,7 @@ model SentimentalAnalysis {
   neutral   Float
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CreditPackage {
@@ -329,12 +329,12 @@ model Payment {
   userId          String
   creditPackageId String
   amount          Float
-  stripePaymentId String        @unique // <--- Mark as unique
+  stripePaymentId String        @unique
   status          PaymentStatus @default(PENDING)
   createdAt       DateTime      @default(now())
 
-  user          User          @relation(fields: [userId], references: [id])
-  creditPackage CreditPackage @relation(fields: [creditPackageId], references: [id])
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditPackage CreditPackage @relation(fields: [creditPackageId], references: [id], onDelete: Restrict)
 }
 
 enum PaymentStatus {
@@ -370,7 +370,7 @@ model Video {
   countryCode      String
   pageToken        String?
   categoryId       String
-  category         Category @relation(fields: [categoryId], references: [categoryId])
+  category         Category @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
 }
 
 model YT_KEYS {

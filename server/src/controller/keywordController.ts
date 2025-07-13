@@ -5,6 +5,7 @@ import {
   updateFavoriteFeature,
 } from "../services/statsService";
 import { FeatureType, PrismaClient } from "@prisma/client";
+import { deductCredits } from "../services/userService";
 
 const prisma = new PrismaClient();
 
@@ -58,6 +59,7 @@ export const analyzeKeywordController = async (
         },
       });
       await updateFavoriteFeature(res.locals.user.userId);
+      await deductCredits(res.locals.user.userId, 1);
     }
 
     res.json(analysis);
@@ -88,7 +90,6 @@ export const getPopularKeywordsController = async (
     const keywords = await getPopularKeywords(req);
 
     // Track feature usage for popular keywords retrieval
-    
 
     res.json(keywords);
   } catch (err: any) {

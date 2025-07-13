@@ -52,7 +52,9 @@ interface SentimentData {
 const SentimentAnalysis = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(
+    null
+  );
   const [error, setError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [videoId, setVideoId] = useState(searchParams.get("videoId") || "");
@@ -60,7 +62,7 @@ const SentimentAnalysis = () => {
   const [activeTab, setActiveTab] = useState("comments");
 
   // Remove videoId from dependency array to prevent re-triggering
-  const analyzeSentiment = useCallback(async (id: string = videoId) => {
+  const analyzeSentiment = async (id: string = videoId) => {
     if (!id.trim()) {
       setError("Please enter a valid YouTube video ID");
       return;
@@ -96,7 +98,7 @@ const SentimentAnalysis = () => {
       setLoading(false);
       useAuthStore.getState().refreshUser();
     }
-  }, [user?.creditBalance, setSearchParams]); // Removed videoId from dependencies
+  }; // Removed videoId from dependencies
 
   // Auto-analyze when component mounts with videoId in URL - only run once
   useEffect(() => {
@@ -119,7 +121,8 @@ const SentimentAnalysis = () => {
             YouTube Video Sentiment Analysis
           </h1>
           <p className="mt-2 text-gray-600">
-            Analyze the sentiment of comments, title, description, and tags for any YouTube video
+            Analyze the sentiment of comments, title, description, and tags for
+            any YouTube video
           </p>
         </div>
 
