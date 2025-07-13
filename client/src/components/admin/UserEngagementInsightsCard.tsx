@@ -121,7 +121,7 @@ export const UserEngagementInsightsCard: React.FC<UserEngagementInsightsCardProp
                     {engagement.data.overview.activeUsers || 0}
                   </div>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                {/* <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-green-900">Engagement Rate</span>
@@ -129,7 +129,7 @@ export const UserEngagementInsightsCard: React.FC<UserEngagementInsightsCardProp
                   <div className="text-2xl font-bold text-green-900">
                     {engagement.data.overview.engagementRate?.toFixed(1) || 0}%
                   </div>
-                </div>
+                </div> */}
               </div>
             )}
 

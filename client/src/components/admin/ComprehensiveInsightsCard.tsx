@@ -19,7 +19,11 @@ import {
   Activity,
   Users,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  Target,
+  Video,
+  CheckCircle
 } from "lucide-react";
 
 // ------------------
@@ -139,43 +143,36 @@ export const ComprehensiveInsightsCard: React.FC<ComprehensiveInsightsCardProps>
     refetchInterval: 5 * 60 * 1000,
   });
 
+  console.log("Comprehensive Insights Data:", JSON.stringify(insights, null, 2));
+  
   const handleDaysChange = (value: string) => {
     setSelectedDays(parseInt(value));
   };
 
-  const renderSystemHealth = (health: string) => {
-    const healthColors = {
-      'Excellent': 'bg-green-100 text-green-800 border-green-200',
-      'Good': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Needs Attention': 'bg-orange-100 text-orange-800 border-orange-200',
-    };
-
-    return (
-      <Badge className={healthColors[health as keyof typeof healthColors] || 'bg-gray-100 text-gray-800'}>
-        {health}
-      </Badge>
-    );
+  const getSystemHealthStatus = (successRate: number) => {
+    if (successRate >= 98) return { label: "Excellent", color: "bg-green-100 text-green-800 border-green-200" };
+    if (successRate >= 95) return { label: "Good", color: "bg-blue-100 text-blue-800 border-blue-200" };
+    if (successRate >= 90) return { label: "Fair", color: "bg-yellow-100 text-yellow-800 border-yellow-200" };
+    return { label: "Needs Attention", color: "bg-red-100 text-red-800 border-red-200" };
   };
 
   const renderMetricCard = (
     title: string,
     value: string | number,
     icon: React.ElementType,
-    trend?: { change: number; percentage: number }
+    description?: string
   ) => (
     <div className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
+          {/* <icon className="h-4 w-4 text-blue-600" /> */}
           <span className="text-sm font-medium text-gray-600">{title}</span>
         </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-xs ${trend.percentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend.percentage >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-            {Math.abs(trend.percentage).toFixed(1)}%
-          </div>
-        )}
       </div>
-      <div className="text-xl font-bold text-gray-900">{value}</div>
+      <div className="text-2xl font-bold text-gray-900 mb-1">{value}</div>
+      {description && (
+        <div className="text-xs text-gray-500">{description}</div>
+      )}
     </div>
   );
 
@@ -203,7 +200,7 @@ export const ComprehensiveInsightsCard: React.FC<ComprehensiveInsightsCardProps>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Comprehensive Insights
+            System Overview
           </CardTitle>
           <Select value={selectedDays.toString()} onValueChange={handleDaysChange}>
             <SelectTrigger className="w-28 h-8">
@@ -222,8 +219,8 @@ export const ComprehensiveInsightsCard: React.FC<ComprehensiveInsightsCardProps>
       <CardContent>
         {isLoading ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array(6).fill(0).map((_, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array(8).fill(0).map((_, i) => (
                 <Skeleton key={i} className="h-20 w-full" />
               ))}
             </div>
@@ -231,34 +228,118 @@ export const ComprehensiveInsightsCard: React.FC<ComprehensiveInsightsCardProps>
           </div>
         ) : insights?.data ? (
           <div className="space-y-6">
-            {/* System Overview */}
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {renderMetricCard(
+                "Total Users", 
+                insights.data.users.totalUsers.toLocaleString(), 
+                Users,
+                "Registered users"
+              )}
+              {renderMetricCard(
+                "Active Users", 
+                insights.data.users.activeUsers.toLocaleString(), 
+                Activity,
+                `${insights.data.users.engagementRate.toFixed(1)}% engagement`
+              )}
+              {renderMetricCard(
+                "Videos Analyzed", 
+                insights.data.today.totalVideosAnalyzed.toLocaleString(), 
+                Video,
+                "Total processed"
+              )}
+              {renderMetricCard(
+                "Success Rate", 
+                `${insights.data.performance.successRate.toFixed(1)}%`, 
+                CheckCircle,
+                "System reliability"
+              )}
+            </div>
+
+            {/* System Health & Performance */}
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                System Overview
+                <Zap className="h-4 w-4" />
+                System Health & Performance
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {renderMetricCard("Total Requests", insights.data.performance.totalRequests, BarChart3)}
-                {renderMetricCard("Avg Response Time", `${insights.data.performance.avgResponseTime.toFixed(0)} ms`, Activity)}
-                {renderMetricCard("Success Rate", `${insights.data.performance.successRate.toFixed(1)}%`, Users)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600">System Status</span>
+                  </div>
+                  <div className="mb-2">
+                    <Badge className={getSystemHealthStatus(insights.data.performance.successRate).color}>
+                      {getSystemHealthStatus(insights.data.performance.successRate).label}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {insights.data.performance.totalRequests} total requests
+                  </div>
+                </div>
+
+                {renderMetricCard(
+                  "Response Time", 
+                  `${insights.data.performance.avgResponseTime.toFixed(0)}ms`, 
+                  Activity,
+                  "Average response"
+                )}
+
+                {renderMetricCard(
+                  "Error Rate", 
+                  `${insights.data.performance.errorRate.toFixed(1)}%`, 
+                  Target,
+                  `${insights.data.performance.totalErrors} errors`
+                )}
+
+                {renderMetricCard(
+                  "Total Operations", 
+                  insights.data.totalUsage.reduce((sum, item) => sum + item.totalCount, 0).toLocaleString(),
+                  BarChart3,
+                  "All features combined"
+                )}
               </div>
             </div>
 
-            {/* Feature Performance */}
-            {insights.data.performance.metrics.length > 0 && (
+            {/* Feature Usage Summary */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Feature Usage Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {insights.data.totalUsage.map((usage) => (
+                  <div key={usage.id} className="p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-sm font-medium text-gray-600 mb-1 capitalize">
+                      {usage.feature.replace(/_/g, ' ').toLowerCase()}
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">
+                      {usage.totalCount.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Total operations
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Top Users */}
+            {insights.data.users.topUsers.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Feature Performance</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Active Users</h3>
                 <div className="space-y-2">
-                  {insights.data.performance.metrics.slice(0, 4).map((feature: FeatureMetric) => (
-                    <div key={feature.id} className="flex justify-between items-center p-3 bg-white rounded border">
-                      <div>
-                        <span className="font-medium capitalize">{feature.feature.replace(/_/g, ' ')}</span>
-                        <div className="text-xs text-gray-500">{feature.requestCount} requests</div>
+                  {insights.data.users.topUsers.slice(0, 3).map((user, index) => (
+                    <div key={user.id} className="flex justify-between items-center p-3 bg-white rounded border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-medium">{user.user.name || 'Anonymous'}</div>
+                          <div className="text-xs text-gray-500">{user.user.email}</div>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">{feature.avgResponseTime}ms</div>
-                        <div className="text-xs text-gray-500">
-                          {feature.successRate.toFixed(1)}% success
+                        <div className="text-sm font-medium">{user.totalSessions} sessions</div>
+                        <div className="text-xs text-gray-500 capitalize">
+                          Prefers {user.favoriteFeature.replace(/_/g, ' ').toLowerCase()}
                         </div>
                       </div>
                     </div>
@@ -266,6 +347,11 @@ export const ComprehensiveInsightsCard: React.FC<ComprehensiveInsightsCardProps>
                 </div>
               </div>
             )}
+
+            {/* Data Timestamp */}
+            <div className="text-xs text-gray-500 text-center pt-4 border-t">
+              Last updated: {new Date(insights.data.timestamp).toLocaleString()}
+            </div>
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">

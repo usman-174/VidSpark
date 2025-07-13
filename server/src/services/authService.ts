@@ -716,13 +716,12 @@ export const forgetPasswordService = async (
 
 export const resetPasswordService = async (
   email: string,
-  token: string,
   newPassword: string
 ): Promise<ServiceResponse> => {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user || user.resetToken !== token) {
+    if (!user || !user.resetToken) {
       return { success: false, message: "Invalid or expired reset token" };
     }
 

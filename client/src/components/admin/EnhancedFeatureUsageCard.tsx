@@ -268,18 +268,18 @@ export const EnhancedFeatureUsageCard: React.FC<EnhancedFeatureUsageCardProps> =
                           {featureUsage.data.detailed_stats.system_performance.avg_response_time}ms
                         </div>
                       </div>
-                      <div className="p-3 bg-white rounded border">
+                      {/* <div className="p-3 bg-white rounded border">
                         <div className="text-xs text-gray-600">Success Rate</div>
                         <div className="text-lg font-bold text-green-600">
                           {featureUsage.data.detailed_stats.system_performance.success_rate.toFixed(1)}%
                         </div>
-                      </div>
-                      <div className="p-3 bg-white rounded border">
+                      </div> */}
+                      {/* <div className="p-3 bg-white rounded border">
                         <div className="text-xs text-gray-600">Error Rate</div>
                         <div className="text-lg font-bold text-red-600">
                           {featureUsage.data.detailed_stats.system_performance.error_rate.toFixed(1)}%
                         </div>
-                      </div>
+                      </div> */}
                       <div className="p-3 bg-white rounded border">
                         <div className="text-xs text-gray-600">Total Requests</div>
                         <div className="text-lg font-bold">

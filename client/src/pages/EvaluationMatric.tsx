@@ -193,7 +193,7 @@ const ContentEvaluation = () => {
         {/* Simplified Input Form */}
         <div className="w-full">
           <Card className="shadow-lg border-2 border-blue-100">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
+            <CardHeader className=" bg-gradient-to-b from-teal-800 to-teal-900 text-white rounded-t-lg">
               <CardTitle className="flex items-center text-xl">
                 <BarChart3 className="mr-2 h-6 w-6" />
                 Content Analyzer
@@ -323,7 +323,7 @@ const ContentEvaluation = () => {
                       !formData.description.trim() ||
                       !formData.tags_cleaned.trim()
                     }
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                    className="flex-1  bg-gradient-to-b from-teal-800 to-teal-900 hover:bg-teal-700/50"
                   >
                     {analyzeContentMutation.isPending ? (
                       <>

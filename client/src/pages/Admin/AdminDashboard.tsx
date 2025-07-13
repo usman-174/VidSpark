@@ -5,25 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import React from "react";
 
 import {
   CreditStats,
-  DomainStats,
-  InvitationStats,
-  UserGrowthData,
-  FeatureUsageStats,
+  InvitationStats
 } from "@/types/adminTypes";
 
-import { UserPlus, Users, Users as UsersIcon, BarChart3, UserCheck, Activity } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { adminAPI } from "@/api/adminApi";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, UserCheck, UserPlus, Users, Users as UsersIcon } from "lucide-react";
 
 // Import new components
-import { ComprehensiveInsightsCard } from "@/components/admin/ComprehensiveInsightsCard";
-import { UserEngagementInsightsCard } from "@/components/admin/UserEngagementInsightsCard";
 import { EnhancedFeatureUsageCard } from "@/components/admin/EnhancedFeatureUsageCard";
+import { UserEngagementInsightsCard } from "@/components/admin/UserEngagementInsightsCard";
 
 // Existing components (keeping them simple for now)
 const StatCard = ({
@@ -145,7 +140,6 @@ export const AdminDashboard = () => {
     queryKey: ["admin", "stats"],
     queryFn: adminAPI.getStats,
   });
-
   const {
     data: invitations,
     isLoading: invitationsLoading,
@@ -194,14 +188,11 @@ export const AdminDashboard = () => {
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-gray-600 mt-1">Comprehensive analytics and insights for your platform</p>
         </div>
-        <Badge variant="outline" className="flex items-center gap-2">
-          <Activity className="h-3 w-3" />
-          Live Data
-        </Badge>
+        
       </div>
 
       {/* Quick Stats Overview */}
-      {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
           value={stats?.totalUsers}
@@ -227,16 +218,13 @@ export const AdminDashboard = () => {
           icon={UserCheck}
           loading={statsLoading}
         />
-      </div> */}
+      </div>
 
       {/* Enhanced Analytics Tabs */}
       <Tabs defaultValue="insights" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Insights
-          </TabsTrigger>
-          <TabsTrigger value="features" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3">
+         
+          <TabsTrigger value="features" className="flex items-center gap-2" >
             <Activity className="h-4 w-4" />
             Features
           </TabsTrigger>
@@ -246,17 +234,17 @@ export const AdminDashboard = () => {
           </TabsTrigger>
           <TabsTrigger value="legacy" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Legacy
+            Other
           </TabsTrigger>
         </TabsList>
 
         {/* Comprehensive Insights Tab */}
-        <TabsContent value="insights" className="space-y-6">
+        {/* <TabsContent value="insights" className="space-y-6">
           <ComprehensiveInsightsCard className="w-full" />
-        </TabsContent>
+        </TabsContent> */}
 
         {/* Enhanced Feature Usage Tab */}
-        <TabsContent value="features" className="space-y-6">
+        <TabsContent value="features" className="space-y-6" >
           <EnhancedFeatureUsageCard className="w-full" />
         </TabsContent>
 

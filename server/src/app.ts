@@ -68,7 +68,7 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // Health Check
-app.get("/health", (req: Request, res: Response) => {
+app.get("/health", (_: Request, res: Response) => {
   res.status(200).json({ message: "Server is healthy" });
 });
 

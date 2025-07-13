@@ -60,7 +60,7 @@ const WelcomeHeader = ({ insights, isLoading }: WelcomeHeaderProps) => {
             className="bg-green-100 text-green-800 border-green-300"
           >
             <CreditCard className="mr-1 h-4 w-4" />
-            {overview.credit_balance} credits
+            {user?.creditBalance} credits
           </Badge>
         </div>
       </CardHeader>
