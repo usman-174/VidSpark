@@ -1,29 +1,27 @@
-import express, { Express, Request, Response, NextFunction } from "express";
-import dotenv from "dotenv";
 import cors from "cors";
+import dotenv from "dotenv";
+import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-
-import hpp from "hpp";
 import rateLimit from "express-rate-limit";
+import hpp from "hpp";
 
 // Local imports
-import { initializeCronJobs } from "./cron";
 import { restrictTo, setUser } from "./middleware/authMiddleware";
 import adminRouter from "./routes/adminRoutes";
 import authRoutes from "./routes/authRoutes";
+import evaluationRouter from "./routes/evaluationRoutes";
 import ideasRouter from "./routes/ideaRoutes";
 import invitationRoutes from "./routes/invitationRoutes";
-import keywordRoutes from "./routes/keywordRoutes";
+import keywordAnalysisRoutes from "./routes/keywordAnalysis";
 import packageRouter from "./routes/packageRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
 import policyRoutes from "./routes/policyRoutes";
 import titleRoutes from "./routes/titleRoutes";
 import uploadRoutes from "./routes/uploadRoute";
+import userInsightsRouter from "./routes/userInsightsRoutes";
 import userRouter from "./routes/userRoutes";
 import ytRouter from "./routes/ytRoutes";
-import evaluationRouter from "./routes/evaluationRoutes";
-import userInsightsRouter from "./routes/userInsightsRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -49,15 +47,17 @@ app.use(express.json());
 app.use(morgan("dev"));
 
 // CORS
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    process.env.ORIGIN || "http://localhost:3000",
-    "http://localhost:7000",
-  ],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      process.env.ORIGIN || "http://localhost:3000",
+      "http://localhost:7000",
+    ],
+    credentials: true,
+  })
+);
 
 // Rate Limiter (300 requests per 15 minutes per IP)
 const limiter = rateLimit({
@@ -83,11 +83,23 @@ app.use("/api/uploads", setUser, restrictTo(["USER"]), uploadRoutes);
 app.use("/api/payments", setUser, restrictTo(["USER", "ADMIN"]), paymentRoutes);
 app.use("/api/titles", setUser, restrictTo(["USER"]), titleRoutes);
 app.use("/api/policies", setUser, restrictTo(["ADMIN"]), policyRoutes);
-app.use("/api/keywords", setUser, restrictTo(["USER"]), keywordRoutes);
 app.use("/api/ideas-today", setUser, restrictTo(["USER"]), ideasRouter);
 app.use("/api/ideas", setUser, restrictTo(["USER"]), ideasRouter);
-app.use("/api/user/insights", setUser, restrictTo(["USER", "ADMIN"]), userInsightsRouter);
-app.use("/api/evaluation", setUser, restrictTo(["USER", "ADMIN"]), evaluationRouter);
+app.use(
+  "/api/user/insights",
+  setUser,
+  restrictTo(["USER", "ADMIN"]),
+  userInsightsRouter
+);
+app.use(
+  "/api/evaluation",
+  setUser,
+  restrictTo(["USER", "ADMIN"]),
+  evaluationRouter
+);
+
+// Keyword Analysis Routes
+app.use("/api/keyword-analysis", keywordAnalysisRoutes);
 
 // 404 Route
 app.use("*", (req: Request, res: Response) => {
@@ -114,4 +126,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(
+    `🔍 Keyword Analysis API available at: http://localhost:${PORT}/api/keyword-analysis`
+  );
 });

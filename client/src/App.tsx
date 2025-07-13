@@ -54,7 +54,6 @@ function App() {
 
       <Routes>
         <Route path="/arcx" element={<ArchitectureDiagram />}/>
-        <Route path="/arc" element={<ArchitectureDiagram />}/>
 
         {/* Public routes */}
         <Route element={<AuthRoute />}>

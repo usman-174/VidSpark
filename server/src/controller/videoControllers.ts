@@ -438,7 +438,7 @@ export const getTrendingVideos = async (
 
     // Pick the top 10 keywords.
     const topKeywords = aggregatedKeywordsArray.slice(0, 10);
-    console.log("Top Keywords:", topKeywords);
+   
 
     // Cache the response along with the current timestamp.
     trendingVideosCache = {

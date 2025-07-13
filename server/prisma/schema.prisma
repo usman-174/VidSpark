@@ -12,6 +12,82 @@ enum Gender {
   FEMALE
 }
 
+// Add these models to your existing schema.prisma file
+
+model KeywordAnalysis {
+  id            String   @id @default(uuid())
+  keyword       String
+  userId        String?
+  firstAnalyzed DateTime @default(now())
+  lastUpdated   DateTime @updatedAt
+  searchCount   Int      @default(1)
+
+  // Relations
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  videoAnalysis   VideoAnalysis[]
+  keywordInsights KeywordInsights[]
+
+  @@index([keyword])
+  @@index([userId])
+  @@index([lastUpdated])
+  @@map("keyword_analysis")
+}
+
+model VideoAnalysis {
+  id                String   @id @default(uuid())
+  keywordAnalysisId String
+  videoId           String
+  title             String   @db.Text
+  views             Int
+  uploadDate        DateTime
+  channelName       String
+  channelId         String
+  tags              String[] // Array of tags
+  description       String?  @db.Text
+  analyzedAt        DateTime @default(now())
+
+  // Relations
+  keywordAnalysis KeywordAnalysis @relation(fields: [keywordAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([keywordAnalysisId])
+  @@index([videoId])
+  @@index([uploadDate])
+  @@map("video_analysis")
+}
+
+model KeywordInsights {
+  id                 String             @id @default(uuid())
+  keywordAnalysisId  String
+  competitionScore   Float
+  averageViews       Int
+  trendDirection     TrendDirection
+  contentOpportunity ContentOpportunity
+  recentVideoCount   Int
+  topChannels        String[] // Array of top channel names
+  aiInsights         String[] // Array of AI-generated insights
+  analysisDate       DateTime           @default(now())
+
+  // Relations
+  keywordAnalysis KeywordAnalysis @relation(fields: [keywordAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([keywordAnalysisId])
+  @@index([analysisDate])
+  @@map("keyword_insights")
+}
+
+// Enums for keyword analysis
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+}
+
+enum ContentOpportunity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 // Update your User model to include the relation
 model User {
   id                    String                @id @default(uuid())
@@ -49,8 +125,8 @@ model EvaluationMetric {
   tags        String
 
   // Results
-  predictedViews  Int
-  contentScore    Float
+  predictedViews Int
+  contentScore   Float
 
   // Metadata
   processingTime Int? // in milliseconds
@@ -65,14 +141,14 @@ model EvaluationMetric {
   @@map("evaluation_metrics")
 }
 
-model KeywordAnalysis {
-  id        String   @id @default(uuid())
-  userId    String
-  videoUrl  String
-  keywords  String[] // Store keywords as a string array
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// model KeywordAnalysis {
+//   id        String   @id @default(uuid())
+//   userId    String
+//   videoUrl  String
+//   keywords  String[] // Store keywords as a string array
+//   createdAt DateTime @default(now())
+//   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+// }
 
 model PopularKeyword {
   id        String   @id @default(uuid())

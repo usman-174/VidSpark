@@ -23,6 +23,7 @@ import useAuthStore from "@/store/authStore";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import FavoriteTitlesModal from "@/components/ui/TitleGeneration/FavouriteTitlesModal";
 import {
   useGenerateTitles,
@@ -42,6 +43,7 @@ type GeneratedTitle = string | TitleWithKeywords;
 
 const TitleGeneration = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // React Query hooks
   const generateTitlesMutation = useGenerateTitles();
@@ -56,6 +58,9 @@ const TitleGeneration = () => {
   const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(
     null
   );
+
+  // Check if user has credits
+  const hasCredits = user?.creditBalance ? user.creditBalance > 0 : false;
 
   // Fetch the current generation data if we have an ID
   const { data: currentGeneration } = useTitleGeneration(currentGenerationId);
@@ -118,6 +123,10 @@ const TitleGeneration = () => {
     return keywordArray.length >= 3 && keywordArray.length <= 5;
   };
 
+  const handleBuyCredits = () => {
+    navigate("/packages");
+  };
+
   const handleGenerate = async () => {
     const keywordArray = keywords
       .split(",")
@@ -129,7 +138,7 @@ const TitleGeneration = () => {
       return;
     }
 
-    if (user?.creditBalance === 0) {
+    if (!hasCredits) {
       toast.error(
         "You have no credits left. Please purchase more to generate titles."
       );
@@ -200,7 +209,8 @@ const TitleGeneration = () => {
     if (
       e.key === "Enter" &&
       !generateTitlesMutation.isPending &&
-      validateKeywords(keywords)
+      validateKeywords(keywords) &&
+      hasCredits
     ) {
       handleGenerate();
     }
@@ -251,22 +261,96 @@ const TitleGeneration = () => {
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    className="border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg"
+                    className={`border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg ${
+                      !hasCredits ? 'opacity-75' : ''
+                    }`}
+                    disabled={!hasCredits}
                   />
+                  
+                  {/* Credits Indicator */}
+                  {!hasCredits && user?.id && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-amber-50 border border-amber-200 rounded-lg"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-amber-100 rounded-full p-1.5">
+                          <AlertCircle className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-amber-800 text-sm font-medium">
+                            No Credits Available
+                          </p>
+                          <p className="text-amber-700 text-xs mt-1">
+                            You need credits to generate YouTube titles. Purchase credits to continue.
+                          </p>
+                          <Button
+                            onClick={handleBuyCredits}
+                            size="sm"
+                            className="mt-2 bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5"
+                          >
+                            Buy Credits
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Low Credits Warning */}
+                  {hasCredits && user?.creditBalance && user.creditBalance <= 5 && user.creditBalance > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-orange-50 border border-orange-200 rounded-lg"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-orange-100 rounded-full p-1.5">
+                          <AlertCircle className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-orange-800 text-sm font-medium">
+                            Low Credits Warning
+                          </p>
+                          <p className="text-orange-700 text-xs mt-1">
+                            You have {user.creditBalance} credits remaining. Consider purchasing more to avoid interruption.
+                          </p>
+                          <Button
+                            onClick={handleBuyCredits}
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 border-orange-300 text-orange-700 hover:bg-orange-100 text-xs px-3 py-1.5"
+                          >
+                            Buy More Credits
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 <Button
                   onClick={handleGenerate}
                   disabled={
                     generateTitlesMutation.isPending ||
-                    !validateKeywords(keywords)
+                    !validateKeywords(keywords) ||
+                    !hasCredits
                   }
-                  className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center"
+                  className={`w-full font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center ${
+                    hasCredits 
+                      ? 'bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   {generateTitlesMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Generating...
+                    </>
+                  ) : !hasCredits ? (
+                    <>
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      No Credits Available
                     </>
                   ) : (
                     <>
@@ -415,9 +499,27 @@ const TitleGeneration = () => {
               )}
 
               <CardFooter className="flex justify-between items-center text-xs text-gray-500 bg-gray-50 px-6 py-3">
-                <div>
-                  Available Credits:{" "}
-                  <span className="font-medium">{user?.creditBalance || 0}</span>
+                <div className="flex items-center space-x-4">
+                  <span>
+                    Available Credits:{" "}
+                    <span className={`font-medium ${
+                      !hasCredits ? 'text-red-600' : 
+                      user?.creditBalance && user.creditBalance <= 5 ? 'text-orange-600' : 
+                      'text-green-600'
+                    }`}>
+                      {user?.creditBalance || 0}
+                    </span>
+                  </span>
+                  {!hasCredits && (
+                    <Button
+                      onClick={handleBuyCredits}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs px-2 py-1 h-6 border-teal-300 text-teal-700 hover:bg-teal-50"
+                    >
+                      Buy Credits
+                    </Button>
+                  )}
                 </div>
                 <div>Cost: 1 credit per generation</div>
               </CardFooter>

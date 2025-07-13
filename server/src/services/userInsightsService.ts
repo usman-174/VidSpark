@@ -129,11 +129,11 @@ export async function getUserContentPerformance(userId: string) {
     });
 
     // Get keyword analyses
-    const keywordAnalyses = await prisma.keywordAnalysis.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    // const keywordAnalyses = await prisma.keywordAnalysis.findMany({
+    //   where: { userId },
+    //   orderBy: { createdAt: "desc" },
+    //   take: 20,
+    // });
 
     // Get recent sentiment analyses
     const sentimentAnalyses = await prisma.sentimentalAnalysis.findMany({
@@ -169,14 +169,14 @@ export async function getUserContentPerformance(userId: string) {
           provider: gen.provider,
         })),
       },
-      keyword_performance: {
-        total_analyses: keywordAnalyses.length,
-        recent_keywords: keywordAnalyses.slice(0, 10).map((analysis) => ({
-          keywords: analysis.keywords,
-          video_url: analysis.videoUrl,
-          created_at: analysis.createdAt,
-        })),
-      },
+      // keyword_performance: {
+      //   total_analyses: keywordAnalyses.length,
+      //   recent_keywords: keywordAnalyses.slice(0, 10).map((analysis) => ({
+      //     keywords: analysis.keywords,
+      //     video_url: analysis.videoUrl,
+      //     created_at: analysis.createdAt,
+      //   })),
+      // },
       sentiment_performance: {
         total_analyses: sentimentAnalyses.length,
         avg_sentiment:
