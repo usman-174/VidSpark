@@ -87,10 +87,7 @@ const Home = () => {
         {/* Quick Actions */}
         <QuickActions />
         {/* Personalized Recommendations */}
-        <Recommendations
-          recommendations={recommendations}
-          isLoading={isLoadingRecommendations}
-        />
+
         {/* Insights Overview */}
         <InsightsOverview insights={insights} isLoading={isLoadingInsights} />
 
@@ -101,9 +98,6 @@ const Home = () => {
           isLoading={isLoadingVideos}
         />
         {/* Ideas of the Day */}
-      
-          
-       
       </div>
     </div>
   );

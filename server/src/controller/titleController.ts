@@ -3,7 +3,11 @@ import { Request, Response } from "express";
 import { generateTitle } from "../services/titleService";
 import { deductCredits } from "../services/userService";
 import { getUser } from "../services/authService";
-import { trackFeatureUsage, trackPopularContent } from "../services/statsService";
+import {
+  trackFeatureUsage,
+  trackPopularContent,
+  updateFavoriteFeature,
+} from "../services/statsService";
 import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -63,7 +67,7 @@ export const generateTitles = async (
 ): Promise<any> => {
   const startTime = Date.now();
   let success = false;
-  
+
   try {
     const prompt = req.body.prompt || (req.query.prompt as string);
     const maxLength = parseInt(
@@ -95,7 +99,7 @@ export const generateTitles = async (
         processingTime: Date.now() - startTime,
         success: false,
         errorMessage: "Insufficient credits",
-        prompt: prompt.substring(0, 100)
+        prompt: prompt.substring(0, 100),
       });
 
       return res.status(403).json({
@@ -114,7 +118,7 @@ export const generateTitles = async (
     if (result.success) {
       success = true;
       const processingTime = Date.now() - startTime;
-      
+
       await deductCredits(res.locals.user.userId, 1);
 
       // Track successful title generation
@@ -126,23 +130,25 @@ export const generateTitles = async (
         model,
         promptLength: prompt.length,
         maxLength,
-        provider: result.provider
+        provider: result.provider,
       });
 
       // Track popular prompts and generated titles
       await trackPopularContent(ContentType.KEYWORD, prompt.substring(0, 200), {
         titleCount: result.titles?.length || 0,
         model,
-        provider: result.provider
+        provider: result.provider,
       });
 
       // Track generated titles as popular content
       if (result.titles && Array.isArray(result.titles)) {
-        for (const titleData of result.titles.slice(0, 3)) { // Track top 3 titles
-          const titleText = typeof titleData === 'string' ? titleData : titleData.title;
+        for (const titleData of result.titles.slice(0, 3)) {
+          // Track top 3 titles
+          const titleText =
+            typeof titleData === "string" ? titleData : titleData.title;
           await trackPopularContent(ContentType.TITLE, titleText, {
             fromPrompt: prompt.substring(0, 50),
-            model
+            model,
           });
         }
       }
@@ -157,6 +163,7 @@ export const generateTitles = async (
             result.provider
           );
           result.generationId = savedGeneration.id;
+          updateFavoriteFeature(res.locals.user.userId); // Update favorite feature usage
         } catch (saveError) {
           console.error("Error saving title generation:", saveError);
         }
@@ -169,7 +176,7 @@ export const generateTitles = async (
         success: false,
         errorMessage: "Title generation failed",
         model,
-        promptLength: prompt.length
+        promptLength: prompt.length,
       });
     }
 
@@ -180,7 +187,7 @@ export const generateTitles = async (
       userId: res.locals.user?.userId,
       processingTime: Date.now() - startTime,
       success: false,
-      errorMessage: error.message || "Unknown error"
+      errorMessage: error.message || "Unknown error",
     });
 
     console.error("Error generating titles:", error);
@@ -199,7 +206,7 @@ export const getUserTitleGenerations = async (
   res: Response
 ): Promise<any> => {
   const startTime = Date.now();
-  
+
   try {
     const userId = res.locals.user.userId;
     const page = parseInt((req.query.page as string) || "1");
@@ -230,7 +237,7 @@ export const getUserTitleGenerations = async (
       isRetrieval: true,
       generationsCount: generations.length,
       totalGenerations: totalCount,
-      page
+      page,
     });
 
     return res.json({
@@ -249,7 +256,7 @@ export const getUserTitleGenerations = async (
       processingTime: Date.now() - startTime,
       success: false,
       isRetrieval: true,
-      errorMessage: error.message
+      errorMessage: error.message,
     });
 
     console.error("Error fetching title generations:", error);
@@ -268,7 +275,7 @@ export const getTitleGenerationById = async (
   res: Response
 ): Promise<any> => {
   const startTime = Date.now();
-  
+
   try {
     const { id } = req.params;
     const userId = res.locals.user.userId;
@@ -290,7 +297,7 @@ export const getTitleGenerationById = async (
         success: false,
         isRetrieval: true,
         errorMessage: "Generation not found",
-        generationId: id
+        generationId: id,
       });
 
       return res.status(404).json({
@@ -305,7 +312,7 @@ export const getTitleGenerationById = async (
       success: true,
       isRetrieval: true,
       generationId: id,
-      titlesCount: generation.titles.length
+      titlesCount: generation.titles.length,
     });
 
     return res.json({
@@ -318,7 +325,7 @@ export const getTitleGenerationById = async (
       processingTime: Date.now() - startTime,
       success: false,
       isRetrieval: true,
-      errorMessage: error.message
+      errorMessage: error.message,
     });
 
     console.error("Error fetching title generation:", error);
@@ -336,7 +343,7 @@ export const toggleFavoriteTitle = async (
   res: Response
 ): Promise<any> => {
   const startTime = Date.now();
-  
+
   try {
     const { titleId } = req.params;
     const userId = res.locals.user.userId;
@@ -358,7 +365,7 @@ export const toggleFavoriteTitle = async (
         success: false,
         isFavoriteAction: true,
         errorMessage: "Title not found or access denied",
-        titleId
+        titleId,
       });
 
       return res.status(404).json({
@@ -380,14 +387,14 @@ export const toggleFavoriteTitle = async (
       success: true,
       isFavoriteAction: true,
       favoriteStatus: updatedTitle.isFavorite,
-      titleId
+      titleId,
     });
 
     // Track popular favorited titles
     if (updatedTitle.isFavorite) {
       await trackPopularContent(ContentType.TITLE, updatedTitle.title, {
         isFavorited: true,
-        userId
+        userId,
       });
     }
 
@@ -401,7 +408,7 @@ export const toggleFavoriteTitle = async (
       processingTime: Date.now() - startTime,
       success: false,
       isFavoriteAction: true,
-      errorMessage: error.message
+      errorMessage: error.message,
     });
 
     console.error("Error toggling favorite status:", error);
@@ -419,7 +426,7 @@ export const getFavoriteTitles = async (
   res: Response
 ): Promise<any> => {
   const startTime = Date.now();
-  
+
   try {
     const userId = res.locals.user.userId;
 
@@ -450,7 +457,7 @@ export const getFavoriteTitles = async (
       processingTime: Date.now() - startTime,
       success: true,
       isFavoriteRetrieval: true,
-      favoriteTitlesCount: favoriteTitles.length
+      favoriteTitlesCount: favoriteTitles.length,
     });
 
     return res.json({
@@ -463,7 +470,7 @@ export const getFavoriteTitles = async (
       processingTime: Date.now() - startTime,
       success: false,
       isFavoriteRetrieval: true,
-      errorMessage: error.message
+      errorMessage: error.message,
     });
 
     console.error("Error fetching favorite titles:", error);

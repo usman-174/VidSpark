@@ -108,7 +108,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start Cron Jobs
-initializeCronJobs();
+// initializeCronJobs();
 
 // Start Server
 app.listen(PORT, () => {

@@ -4,8 +4,9 @@ import axios from "axios";
 import {
   trackFeatureUsage,
   trackPopularContent,
+  updateFavoriteFeature,
 } from "../services/statsService";
-import { ContentType, FeatureType } from "@prisma/client";
+import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
 
 interface PredictionRequest {
   title: string;
@@ -18,6 +19,7 @@ interface PredictionResponse {
   confidence: string;
   processed_at: string;
 }
+const prisma = new PrismaClient();
 
 export class EvaluationMetricController {
   private static readonly PYTHON_API_BASE_URL =
@@ -301,6 +303,35 @@ export class EvaluationMetricController {
     }
   }
 
+  public static async saveEvaluationMetric(
+    userId: string,
+    title: string,
+    description: string,
+    tags: string,
+    predictedViews: number,
+    contentScore: number,
+    processingTime: number
+  ) {
+    try {
+      const evaluationMetric = await prisma.evaluationMetric.create({
+        data: {
+          userId,
+          title,
+          description,
+          tags,
+          predictedViews,
+          contentScore,
+
+          processingTime,
+        },
+      });
+
+      return evaluationMetric;
+    } catch (error) {
+      console.error("Error saving evaluation metric to database:", error);
+      throw error;
+    }
+  }
   /**
    * Get evaluation metrics and insights for content
    * POST /api/evaluation/analyze
@@ -363,6 +394,16 @@ export class EvaluationMetricController {
       const processingTime = Date.now() - startTime;
       const contentScore =
         EvaluationMetricController.calculateContentScore(insights);
+      await EvaluationMetricController.saveEvaluationMetric(
+        userId,
+        title,
+        description,
+        tags_cleaned,
+        prediction.predicted_views,
+        contentScore,
+
+        processingTime
+      );
 
       // Track successful analysis with detailed insights
       await trackFeatureUsage(FeatureType.EVALUATION_METRIC, {
@@ -396,7 +437,7 @@ export class EvaluationMetricController {
           isAnalysis: true,
         }
       );
-
+      await updateFavoriteFeature(res.locals.user.userId);
       res.status(200).json({
         success: true,
         data: {

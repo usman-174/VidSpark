@@ -1,6 +1,6 @@
-import Parser from 'rss-parser';
-import { PrismaClient } from '@prisma/client';
-import axios from 'axios';
+import Parser from "rss-parser";
+import { PrismaClient } from "@prisma/client";
+import axios from "axios";
 
 const parser = new Parser();
 const prisma = new PrismaClient();
@@ -29,7 +29,9 @@ async function generateIdeasWithOpenRouter(
   model: string = "deepseek/deepseek-chat-v3-0324:free"
 ): Promise<TitleGenerationResponse> {
   try {
-    const url = process.env.OPENROUTER_URL || "https://openrouter.ai/api/v1/chat/completions";
+    const url =
+      process.env.OPENROUTER_URL ||
+      "https://openrouter.ai/api/v1/chat/completions";
     console.log(`🌐 Using OpenRouter with model: ${model}`);
 
     const systemMessage = `You are a creative YouTube content strategist specializing in viral, entertaining content for Pakistani audiences. Your task is to transform ANY topic into engaging YouTube video ideas across diverse categories.
@@ -149,7 +151,7 @@ function generateCreativeTopics(): string[] {
     "Prank ideas for friends",
     "Reaction to viral videos",
     "Roasting trending topics",
-    "Social experiments in Pakistan"
+    "Social experiments in Pakistan",
   ];
 
   const gamingTechTopics = [
@@ -160,7 +162,7 @@ function generateCreativeTopics(): string[] {
     "Free games worth playing",
     "Tech hacks for students",
     "Smartphone camera comparisons",
-    "Gaming chair vs regular chair"
+    "Gaming chair vs regular chair",
   ];
 
   const lifestyleFoodTopics = [
@@ -171,7 +173,7 @@ function generateCreativeTopics(): string[] {
     "Ramadan special recipes",
     "Taste testing international foods",
     "Cooking without gas",
-    "Food delivery app reviews"
+    "Food delivery app reviews",
   ];
 
   const musicDanceTopics = [
@@ -182,7 +184,7 @@ function generateCreativeTopics(): string[] {
     "Learning dance in 24 hours",
     "Music production at home",
     "Singing without training",
-    "Dance battle compilation"
+    "Dance battle compilation",
   ];
 
   const trendingTopics = [
@@ -193,7 +195,7 @@ function generateCreativeTopics(): string[] {
     "Beauty tutorials on budget",
     "Study tips for exams",
     "Room decoration ideas",
-    "Money saving hacks"
+    "Money saving hacks",
   ];
 
   const allTopics = [
@@ -201,9 +203,9 @@ function generateCreativeTopics(): string[] {
     ...gamingTechTopics,
     ...lifestyleFoodTopics,
     ...musicDanceTopics,
-    ...trendingTopics
+    ...trendingTopics,
   ];
-  
+
   // Return 8 random topics for better variety
   return allTopics.sort(() => 0.5 - Math.random()).slice(0, 8);
 }
@@ -245,7 +247,10 @@ function extractTitlesFromResponse(
     console.log("🧹 Cleaned JSON content:", jsonContent);
 
     const parsedData = JSON.parse(jsonContent);
-    console.log("✅ Parsed data structure:", JSON.stringify(parsedData, null, 2));
+    console.log(
+      "✅ Parsed data structure:",
+      JSON.stringify(parsedData, null, 2)
+    );
 
     // Validate and extract items
     if (
@@ -273,15 +278,17 @@ function extractTitlesFromResponse(
           title: item.title.trim(),
           keywords: item.keywords
             .filter((kw: any) => typeof kw === "string" && kw.trim().length > 0)
-            .slice(0, 7)
+            .slice(0, 7),
         }));
 
       if (validItems.length > 0) {
-        console.log(`✅ Successfully extracted ${validItems.length} valid titles`);
+        console.log(
+          `✅ Successfully extracted ${validItems.length} valid titles`
+        );
         return {
           success: true,
           titles: validItems,
-          originalNews
+          originalNews,
         };
       }
     }
@@ -297,13 +304,15 @@ function extractTitlesFromResponse(
     return {
       success: true,
       titles: fallbackTitles,
-      originalNews
+      originalNews,
     };
   }
 }
 
 // Generate fallback titles when AI processing fails
-function generateFallbackTitles(originalNews: string): Array<{ title: string; keywords: string[] }> {
+function generateFallbackTitles(
+  originalNews: string
+): Array<{ title: string; keywords: string[] }> {
   const templates = [
     `🔥 SHOCKING: ${originalNews}`,
     `How to React to ${originalNews}`,
@@ -312,42 +321,42 @@ function generateFallbackTitles(originalNews: string): Array<{ title: string; ke
     `What ${originalNews} Means for You`,
   ];
 
-  return templates.slice(0, 3).map(template => ({
+  return templates.slice(0, 3).map((template) => ({
     title: template.length > 80 ? template.substring(0, 77) + "..." : template,
-    keywords: ["viral", "trending", "Pakistan", "reaction", "explained"]
+    keywords: ["viral", "trending", "Pakistan", "reaction", "explained"],
   }));
 }
 
 export const fetchAndSaveIdeasOfTheDay = async () => {
   try {
-    console.log('🚀 Fetching and generating diverse ideas of the day...');
+    console.log("🚀 Fetching and generating diverse ideas of the day...");
 
     // Enhanced RSS feeds for diverse content
     const rssFeeds = [
       // Global trending topics for diverse content
-      'https://news.google.com/rss/search?q=trending+viral+when:24h&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=entertainment+celebrity+music&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=technology+gaming+gadgets&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=food+cooking+recipe+challenge&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=sports+fitness+workout&hl=en-US&gl=US&ceid=US:en',
-      
+      "https://news.google.com/rss/search?q=trending+viral+when:24h&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/search?q=entertainment+celebrity+music&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/search?q=technology+gaming+gadgets&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/search?q=food+cooking+recipe+challenge&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/search?q=sports+fitness+workout&hl=en-US&gl=US&ceid=US:en",
+
       // Pakistan-specific but diverse categories
-      'https://news.google.com/rss/search?q=Pakistan+entertainment+drama&hl=en-PK&gl=PK&ceid=PK:en',
-      'https://news.google.com/rss/search?q=Pakistan+sports+cricket&hl=en-PK&gl=PK&ceid=PK:en',
-      'https://news.google.com/rss/search?q=Pakistan+technology+startup&hl=en-PK&gl=PK&ceid=PK:en',
+      "https://news.google.com/rss/search?q=Pakistan+entertainment+drama&hl=en-PK&gl=PK&ceid=PK:en",
+      "https://news.google.com/rss/search?q=Pakistan+sports+cricket&hl=en-PK&gl=PK&ceid=PK:en",
+      "https://news.google.com/rss/search?q=Pakistan+technology+startup&hl=en-PK&gl=PK&ceid=PK:en",
     ];
 
     const allNewsItems: NewsItem[] = [];
-    
+
     // Fetch from RSS feeds with error handling
     for (const feedUrl of rssFeeds) {
       try {
         console.log(`📡 Fetching RSS feed: ${feedUrl}`);
         const feed = await parser.parseURL(feedUrl);
-        const items = feed.items.slice(0, 6).map(item => ({
-          title: item.title || '',
-          link: item.link || '',
-          pubDate: item.pubDate || new Date()
+        const items = feed.items.slice(0, 6).map((item) => ({
+          title: item.title || "",
+          link: item.link || "",
+          pubDate: item.pubDate || new Date(),
         }));
         allNewsItems.push(...items);
         console.log(`✅ Fetched ${items.length} items from RSS feed`);
@@ -360,100 +369,132 @@ export const fetchAndSaveIdeasOfTheDay = async () => {
     // Add creative topics for better diversity
     const creativeTopics = generateCreativeTopics();
     console.log(`🎨 Generated ${creativeTopics.length} creative topics`);
-    
-    creativeTopics.forEach(topic => {
+
+    creativeTopics.forEach((topic) => {
       allNewsItems.push({
         title: topic,
-        link: '',
+        link: "",
         pubDate: new Date(),
       });
     });
 
     // Remove duplicates and shuffle for maximum diversity
     const uniqueNewsItems = Array.from(
-      new Map(allNewsItems.map(item => [item.title?.toLowerCase(), item])).values()
-    ).filter(item => item.title && item.title.length > 10)
-     .sort(() => 0.5 - Math.random())
-     .slice(0, 30); // Increased pool for better selection
+      new Map(
+        allNewsItems.map((item) => [item.title?.toLowerCase(), item])
+      ).values()
+    )
+      .filter((item) => item.title && item.title.length > 10)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 30); // Increased pool for better selection
 
     console.log(`📊 Processing ${uniqueNewsItems.length} unique topics`);
 
-    // Delete all existing ideas
-    await prisma.ideasOfTheDay.deleteMany({});
-    console.log('🗑️ Cleared previous ideas of the day');
-
-    const savedIdeas = [];
+    // Generate new ideas first before deleting existing ones
+    const newIdeas = [];
     const usedTitles = new Set<string>();
     const maxIdeas = 12; // Increased for better variety
-    
+
     for (const item of uniqueNewsItems) {
-      if (!item.title || savedIdeas.length >= maxIdeas) break;
+      if (!item.title || newIdeas.length >= maxIdeas) break;
 
       try {
         console.log(`🎯 Processing topic: ${item.title}`);
-        
+
         // Generate YouTube title ideas using OpenRouter
         const titleResponse = await generateIdeasWithOpenRouter(item.title);
-        
-        if (titleResponse.success && titleResponse.titles && titleResponse.titles.length > 0) {
+
+        if (
+          titleResponse.success &&
+          titleResponse.titles &&
+          titleResponse.titles.length > 0
+        ) {
           // Try to get diverse titles and avoid duplicates
           for (const titleData of titleResponse.titles) {
-            if (savedIdeas.length >= maxIdeas) break;
-            
+            if (newIdeas.length >= maxIdeas) break;
+
             const titleLower = titleData.title.toLowerCase();
-            
+
             // Skip if we already have this title or very similar
             if (usedTitles.has(titleLower)) continue;
-            
+
             // Check for title similarity (basic check)
-            const isSimilar = Array.from(usedTitles).some(usedTitle => {
+            const isSimilar = Array.from(usedTitles).some((usedTitle) => {
               const similarity = calculateSimilarity(titleLower, usedTitle);
               return similarity > 0.7; // 70% similarity threshold
             });
-            
-            if (isSimilar) continue;
-            
-            const newIdea = await prisma.ideasOfTheDay.create({
-              data: {
-                title: titleData.title,
-                originalNews: item.title,
-                link: item.link || '',
-                keywords: titleData.keywords || [],
-                pubDate: new Date(item.pubDate || new Date()),
-              },
-            });
 
-            savedIdeas.push(newIdea);
+            if (isSimilar) continue;
+
+            // Prepare the idea data but don't save to database yet
+            const ideaData = {
+              title: titleData.title,
+              originalNews: item.title,
+              link: item.link || "",
+              keywords: titleData.keywords || [],
+              pubDate: new Date(item.pubDate || new Date()),
+            };
+
+            newIdeas.push(ideaData);
             usedTitles.add(titleLower);
-            console.log(`✅ Saved idea: ${titleData.title}`);
+            console.log(`✅ Prepared idea: ${titleData.title}`);
             break; // Move to next source topic
           }
         } else {
           console.log(`⚠️ Failed to generate ideas for: ${item.title}`);
         }
       } catch (error) {
-        console.error(`❌ Error processing topic: ${item.title}`, error);
+        console.error(`❌ Error processing topic: ${item.title}`);
         continue;
       }
     }
 
-    console.log(`🎉 Successfully saved ${savedIdeas.length} diverse ideas of the day`);
-    
+    // Only proceed with database operations if we have successfully generated new ideas
+    if (newIdeas.length === 0) {
+      console.log("⚠️ No new ideas generated. Keeping existing ideas.");
+      throw new Error("Failed to generate any new ideas");
+    }
+
+    console.log(
+      `🎯 Successfully generated ${newIdeas.length} new ideas. Proceeding with database update...`
+    );
+
+    // Use a transaction to ensure atomic operation
+    const savedIdeas = await prisma.$transaction(async (tx) => {
+      // Delete all existing ideas only after we have new ones ready
+      await tx.ideasOfTheDay.deleteMany({});
+      console.log("🗑️ Cleared previous ideas of the day");
+
+      // Save all new ideas
+      const savedItems = [];
+      for (const ideaData of newIdeas) {
+        const newIdea = await tx.ideasOfTheDay.create({
+          data: ideaData,
+        });
+        savedItems.push(newIdea);
+      }
+
+      return savedItems;
+    });
+
+    console.log(
+      `🎉 Successfully saved ${savedIdeas.length} diverse ideas of the day`
+    );
+
     return savedIdeas;
   } catch (error) {
-    console.error('❌ Error fetching and saving ideas of the day:', error);
+    console.error("❌ Error fetching and saving ideas of the day:", error.message);
     throw error;
   }
 };
-
 // Simple similarity calculation function
 function calculateSimilarity(str1: string, str2: string): number {
   const words1 = str1.toLowerCase().split(/\s+/);
   const words2 = str2.toLowerCase().split(/\s+/);
-  
-  const commonWords = words1.filter(word => words2.includes(word));
+
+  const commonWords = words1.filter((word) => words2.includes(word));
   const totalWords = Math.max(words1.length, words2.length);
-  
+
   return commonWords.length / totalWords;
 }
 
@@ -461,7 +502,7 @@ export const getIdeasOfTheDayByDate = async () => {
   try {
     const ideas = await prisma.ideasOfTheDay.findMany({
       orderBy: {
-        pubDate: 'desc',
+        pubDate: "desc",
       },
       select: {
         id: true,
@@ -478,7 +519,7 @@ export const getIdeasOfTheDayByDate = async () => {
     console.log(`📋 Retrieved ${ideas.length} ideas from database`);
     return ideas;
   } catch (error) {
-    console.error('❌ Error getting ideas:', error);
+    console.error("❌ Error getting ideas:", error);
     throw error;
   }
 };
@@ -488,16 +529,16 @@ export const ensureIdeasTableStructure = async () => {
   try {
     // This is a helper function in case you need to verify table structure
     // You might want to add this to your migration or initialization
-    console.log('🔍 Checking ideas table structure...');
-    
+    console.log("🔍 Checking ideas table structure...");
+
     const sampleIdea = await prisma.ideasOfTheDay.findFirst();
     if (sampleIdea) {
-      console.log('✅ Ideas table structure verified');
+      console.log("✅ Ideas table structure verified");
     } else {
-      console.log('ℹ️ No existing ideas found - table is ready for new data');
+      console.log("ℹ️ No existing ideas found - table is ready for new data");
     }
   } catch (error) {
-    console.error('❌ Error checking table structure:', error);
+    console.error("❌ Error checking table structure:", error);
     throw error;
   }
 };

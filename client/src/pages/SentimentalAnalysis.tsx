@@ -59,7 +59,7 @@ const SentimentAnalysis = () => {
   const [videoTitle, setVideoTitle] = useState("");
   const [activeTab, setActiveTab] = useState("comments");
 
-  // Memoize analyzeSentiment to prevent unnecessary re-renders
+  // Remove videoId from dependency array to prevent re-triggering
   const analyzeSentiment = useCallback(async (id: string = videoId) => {
     if (!id.trim()) {
       setError("Please enter a valid YouTube video ID");
@@ -96,14 +96,14 @@ const SentimentAnalysis = () => {
       setLoading(false);
       useAuthStore.getState().refreshUser();
     }
-  }, [user?.creditBalance, setSearchParams, videoId]);
+  }, [user?.creditBalance, setSearchParams]); // Removed videoId from dependencies
 
   // Auto-analyze when component mounts with videoId in URL - only run once
   useEffect(() => {
     const urlVideoId = searchParams.get("videoId");
     if (urlVideoId && urlVideoId.trim() && !sentimentData) {
-      setVideoId(urlVideoId);
-      analyzeSentiment(urlVideoId);
+      setVideoId(urlVideoId); // This won't trigger analyzeSentiment anymore
+      analyzeSentiment(urlVideoId); // Pass the ID directly
     }
   }, []); // Empty dependency array - only run on mount
 

@@ -1,6 +1,6 @@
 // titleService.ts - Enhanced YouTube Title Generator with Advanced Prompt Engineering
 import axios from "axios";
-import { incrementFeatureUsage } from "./statsService";
+import { incrementFeatureUsage, updateFavoriteFeature } from "./statsService";
 // Define response types
 interface TitleWithKeywords {
   title: string;
@@ -112,6 +112,7 @@ async function generateTitlesWithOllama(
 
     if (finalResult.success) {
       await incrementFeatureUsage("title_generation"); // ✅ Log usage
+    
     }
 
     return finalResult;

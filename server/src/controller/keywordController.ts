@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { analyzeKeyword, getPopularKeywords } from "../services/keywordService";
-import { trackFeatureUsage } from "../services/statsService";
+import {
+  trackFeatureUsage,
+  updateFavoriteFeature,
+} from "../services/statsService";
 import { FeatureType, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -46,7 +49,7 @@ export const analyzeKeywordController = async (
         analysis.topVideos[0].videoUrl ||
         `https://www.youtube.com/watch?v=${analysis.topVideos[0].videoId}`;
       console.log("Creating keyword analysis for user:", userId);
-      
+
       await prisma.keywordAnalysis.create({
         data: {
           userId,
@@ -54,6 +57,7 @@ export const analyzeKeywordController = async (
           keywords: [keyword.trim()],
         },
       });
+      await updateFavoriteFeature(res.locals.user.userId);
     }
 
     res.json(analysis);
@@ -84,14 +88,7 @@ export const getPopularKeywordsController = async (
     const keywords = await getPopularKeywords(req);
 
     // Track feature usage for popular keywords retrieval
-    await trackFeatureUsage(FeatureType.KEYWORD_ANALYSIS, {
-      userId,
-      processingTime: Date.now() - startTime,
-      success: true,
-      isPopularKeywordsRetrieval: true,
-      filter: (filter as string) || "all",
-      keywordsReturned: Array.isArray(keywords) ? keywords.length : 0,
-    });
+    
 
     res.json(keywords);
   } catch (err: any) {

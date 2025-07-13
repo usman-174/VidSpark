@@ -22,6 +22,7 @@ export interface ContentStats {
   keywords_analyzed: number;
   sentiment_analyses: number;
   favorite_titles: number;
+  evaluation_metrics:number
 }
 
 export interface RecentActivity {

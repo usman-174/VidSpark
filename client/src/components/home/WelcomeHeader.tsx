@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardInsights } from "@/api/userInsightsApi";
 import { User, Calendar, Activity, CreditCard } from "lucide-react";
+import useAuthStore from "@/store/authStore";
 
 interface WelcomeHeaderProps {
   insights: DashboardInsights | null;
@@ -10,6 +11,8 @@ interface WelcomeHeaderProps {
 }
 
 const WelcomeHeader = ({ insights, isLoading }: WelcomeHeaderProps) => {
+  const { user } = useAuthStore();
+
   if (isLoading) {
     return (
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
@@ -35,7 +38,8 @@ const WelcomeHeader = ({ insights, isLoading }: WelcomeHeaderProps) => {
 
   if (!insights) return null;
 
-  const { user, overview } = insights;
+  const { overview } = insights;
+  console.log("WelcomeHeader insights:", insights);
 
   return (
     <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-none shadow-lg">
@@ -44,13 +48,17 @@ const WelcomeHeader = ({ insights, isLoading }: WelcomeHeaderProps) => {
           <div>
             <CardTitle className="text-2xl font-bold text-gray-800 flex items-center">
               <User className="mr-2 h-6 w-6" />
-              Welcome back, {user.name}!
+              Welcome back, {user?.name || user?.email}!
             </CardTitle>
             <p className="text-gray-600 mt-1">
-              Member since {new Date(overview.member_since).toLocaleDateString()}
+              Member since{" "}
+              {new Date(overview.member_since).toLocaleDateString()}
             </p>
           </div>
-          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+          <Badge
+            variant="outline"
+            className="bg-green-100 text-green-800 border-green-300"
+          >
             <CreditCard className="mr-1 h-4 w-4" />
             {overview.credit_balance} credits
           </Badge>
@@ -59,24 +67,32 @@ const WelcomeHeader = ({ insights, isLoading }: WelcomeHeaderProps) => {
       <CardContent className="pt-0">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{overview.total_feature_usage}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {overview.total_feature_usage}
+            </div>
             <div className="text-sm text-gray-600">Total Usage</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{overview.activity_streak}</div>
+            <div className="text-2xl font-bold text-purple-600">
+              {overview.activity_streak}
+            </div>
             <div className="text-sm text-gray-600">Day Streak</div>
           </div>
-          <div className="text-center">
-            <div className="text-lg font-semibold text-green-600">{overview.favorite_feature}</div>
-            <div className="text-sm text-gray-600">Favorite Feature</div>
-          </div>
-          <div className="text-center">
+          {overview.favorite_feature ? (
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-600">
+                {overview.favorite_feature}
+              </div>
+              <div className="text-sm text-gray-600">Favorite Feature</div>
+            </div>
+          ) : null}
+         {overview.last_active? <div className="text-center">
             <div className="text-sm font-medium text-gray-700 flex items-center justify-center">
               <Calendar className="mr-1 h-4 w-4" />
               {new Date(overview.last_active).toLocaleDateString()}
             </div>
             <div className="text-sm text-gray-600">Last Active</div>
-          </div>
+          </div>:null}
         </div>
       </CardContent>
     </Card>

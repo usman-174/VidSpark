@@ -39,7 +39,7 @@ const IdeasOfTheDay = () => {
       try {
         setIsLoading(true);
         const { data } = await axiosInstance.get<IdeasResponse>("/ideas/show");
-        console.log("Ideas API response:", data);
+        // console.log("Ideas API response:", data);
 
         setIdeas(data.ideas || []);
       } catch (error) {

@@ -2,7 +2,7 @@ import axios from "axios";
 import { Request, Response } from "express";
 import { TfIdf } from "natural";
 import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
-import { incrementFeatureUsage, trackFeatureUsage } from "../services/statsService";
+import {  trackFeatureUsage, updateFavoriteFeature } from "../services/statsService";
 import { deductCredits } from "../services/userService";
 import * as youtubeService from "../services/ytService";
 import { initializeDependencies } from "../utils/dependencies";
@@ -311,7 +311,7 @@ export const analyzeVideoSentiment = async (req: Request, res: Response): Promis
       descriptionLength: cleanDescription.length,
       tagsCount: videoTags.length
     });
-
+    await updateFavoriteFeature(res.locals.user.userId)
     // Deduct credit
     await deductCredits(user.userId, 1);
 

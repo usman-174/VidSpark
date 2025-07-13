@@ -1,24 +1,17 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { DashboardInsights } from "@/api/userInsightsApi";
-import { 
-  BarChart3, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   Activity,
-  Target,
+  BarChart3,
   Calendar,
+  Minus,
   Star,
-  Info
+  Target,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 
 interface InsightsOverviewProps {
@@ -48,21 +41,32 @@ const InsightsOverview = ({ insights, isLoading }: InsightsOverviewProps) => {
 
   if (!insights) return null;
 
-  const { content_stats, recent_activity, performance_trends, feature_breakdown } = insights;
+  const {
+    content_stats,
+    recent_activity,
+    performance_trends,
+    feature_breakdown,
+  } = insights;
 
-  const getTrendIcon = (trend: 'increasing' | 'decreasing' | 'stable') => {
+  const getTrendIcon = (trend: "increasing" | "decreasing" | "stable") => {
     switch (trend) {
-      case 'increasing': return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case 'decreasing': return <TrendingDown className="h-4 w-4 text-red-500" />;
-      default: return <Minus className="h-4 w-4 text-gray-500" />;
+      case "increasing":
+        return <TrendingUp className="h-4 w-4 text-green-500" />;
+      case "decreasing":
+        return <TrendingDown className="h-4 w-4 text-red-500" />;
+      default:
+        return <Minus className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const getTrendColor = (trend: 'increasing' | 'decreasing' | 'stable') => {
+  const getTrendColor = (trend: "increasing" | "decreasing" | "stable") => {
     switch (trend) {
-      case 'increasing': return 'text-green-600';
-      case 'decreasing': return 'text-red-600';
-      default: return 'text-gray-600';
+      case "increasing":
+        return "text-green-600";
+      case "decreasing":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
     }
   };
 
@@ -81,16 +85,29 @@ const InsightsOverview = ({ insights, isLoading }: InsightsOverviewProps) => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Titles</span>
-                <span className="font-bold text-blue-600">{content_stats.titles_generated}</span>
+                <span className="font-bold text-blue-600">
+                  {content_stats.titles_generated}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Keywords</span>
-                <span className="font-bold text-purple-600">{content_stats.keywords_analyzed}</span>
+                <span className="font-bold text-purple-600">
+                  {content_stats.keywords_analyzed}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Sentiment</span>
-                <span className="font-bold text-green-600">{content_stats.sentiment_analyses}</span>
+                <span className="font-bold text-green-600">
+                  {content_stats.sentiment_analyses}
+                </span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Evaluations</span>
+                <span className="font-bold text-orange-600">
+                  {content_stats.evaluation_metrics}
+                </span>
+              </div>
+
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Favorites</span>
                 <span className="font-bold text-yellow-600 flex items-center">
@@ -113,17 +130,21 @@ const InsightsOverview = ({ insights, isLoading }: InsightsOverviewProps) => {
           <CardContent>
             <div className="space-y-3">
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{recent_activity.last_30_days}</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {recent_activity.last_30_days}
+                </div>
                 <div className="text-sm text-gray-600">Last 30 Days</div>
               </div>
               <div className="text-center">
-                <div className="text-xl font-semibold text-gray-700">{recent_activity.daily_average}</div>
+                <div className="text-xl font-semibold text-gray-700">
+                  {recent_activity.daily_average}
+                </div>
                 <div className="text-sm text-gray-600">Daily Average</div>
               </div>
               <div className="text-center">
                 <Badge variant="outline" className="bg-blue-50 text-blue-700">
                   <Calendar className="mr-1 h-3 w-3" />
-                  Peak: {recent_activity.peak_day}
+                  Peak Day: {recent_activity.peak_day}
                 </Badge>
               </div>
             </div>
@@ -142,27 +163,45 @@ const InsightsOverview = ({ insights, isLoading }: InsightsOverviewProps) => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">This Week</span>
-                <span className="font-bold text-purple-600">{performance_trends.weekly_activity}</span>
+                <span className="font-bold text-purple-600">
+                  {performance_trends.weekly_activity}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Last Week</span>
-                <span className="font-bold text-gray-600">{performance_trends.previous_week}</span>
+                <span className="font-bold text-gray-600">
+                  {performance_trends.previous_week}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Change</span>
-                <div className={`flex items-center font-bold ${getTrendColor(performance_trends.trend)}`}>
+                <div
+                  className={`flex items-center font-bold ${getTrendColor(
+                    performance_trends.trend
+                  )}`}
+                >
                   {getTrendIcon(performance_trends.trend)}
-                  <span className="ml-1">{Math.abs(performance_trends.weekly_change_percent)}%</span>
+                  <span className="ml-1">
+                    {Math.abs(performance_trends.weekly_change_percent)}%
+                  </span>
                 </div>
               </div>
               <div className="pt-2">
-                <Badge 
-                  variant="outline" 
-                  className={`${performance_trends.trend === 'increasing' ? 'bg-green-50 text-green-700' : 
-                    performance_trends.trend === 'decreasing' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}
+                <Badge
+                  variant="outline"
+                  className={`${
+                    performance_trends.trend === "increasing"
+                      ? "bg-green-50 text-green-700"
+                      : performance_trends.trend === "decreasing"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-gray-50 text-gray-700"
+                  }`}
                 >
-                  {performance_trends.trend === 'increasing' ? 'Growing' : 
-                   performance_trends.trend === 'decreasing' ? 'Declining' : 'Stable'}
+                  {performance_trends.trend === "increasing"
+                    ? "Growing"
+                    : performance_trends.trend === "decreasing"
+                    ? "Declining"
+                    : "Stable"}
                 </Badge>
               </div>
             </div>
@@ -185,7 +224,9 @@ const InsightsOverview = ({ insights, isLoading }: InsightsOverviewProps) => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">{feature.feature}</span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">{feature.count} uses</span>
+                    <span className="text-sm text-gray-600">
+                      {feature.count} uses
+                    </span>
                     <Badge variant="secondary">{feature.percentage}%</Badge>
                   </div>
                 </div>

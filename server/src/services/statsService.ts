@@ -147,7 +147,7 @@ async function updateUserEngagement(
   }
 }
 
-async function updateFavoriteFeature(userId: string): Promise<void> {
+export async function updateFavoriteFeature(userId: string): Promise<void> {
   try {
     const engagement = await prisma.userEngagement.findUnique({
       where: { userId },
