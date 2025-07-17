@@ -183,6 +183,7 @@ model GeneratedTitle {
   titleGenerationId String
   generation        TitleGeneration @relation(fields: [titleGenerationId], references: [id], onDelete: Cascade)
   isFavorite        Boolean         @default(false)
+  description       String?         @db.Text // Optional description for the title
 }
 
 // schema.prisma - Updated model for Ideas of the Day

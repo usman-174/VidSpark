@@ -1,10 +1,12 @@
 // titleService.ts - Enhanced YouTube Title Generator with Advanced Prompt Engineering
 import axios from "axios";
 import { incrementFeatureUsage, updateFavoriteFeature } from "./statsService";
+
 // Define response types
-interface TitleWithKeywords {
+export interface TitleWithKeywords {
   title: string;
   keywords: string[];
+  description: string; // Now required description for the title
 }
 
 interface TitleGenerationResponse {
@@ -25,7 +27,7 @@ interface TitleGenerationOptions {
 const getYouTubePromptTemplate = (prompt: string): string => {
   const currentYear = new Date().getFullYear();
 
-  return `You are an expert YouTube SEO specialist and viral content creator with deep knowledge of YouTube's algorithm and viewer psychology. Generate 5 highly engaging, click-worthy YouTube video titles that will maximize both search visibility and click-through rates.
+  return `You are an expert YouTube SEO specialist and viral content creator with deep knowledge of YouTube's algorithm and viewer psychology. Generate 3 highly engaging, click-worthy YouTube video titles that will maximize both search visibility and click-through rates.
 
 CRITICAL REQUIREMENTS:
 - Each title must be 60-100 characters long (optimal for YouTube display)
@@ -34,6 +36,7 @@ CRITICAL REQUIREMENTS:
 - Create curiosity gaps that compel viewers to click
 - Optimize for YouTube's search algorithm and recommendation system
 - Feel fresh, current, and relevant for ${currentYear}
+- MUST include a compelling description for each title (5-10 sentences explaining what the video would cover)
 
 PSYCHOLOGICAL TRIGGERS TO INCORPORATE:
 🔥 Urgency: "Before It's Too Late", "Right Now", "Today", "Immediately"
@@ -68,9 +71,17 @@ For each title, provide 5-7 highly relevant SEO keywords that include:
 - Action-oriented keywords
 - Year/time-specific keywords
 
+DESCRIPTION REQUIREMENTS:
+For each title, create a compelling 8-12(long length) sentence description that:
+- Explains what the video would cover
+- Highlights the main benefit or value proposition
+- Creates additional interest and context
+- Uses persuasive language to encourage viewing
+- Mentions specific outcomes or results viewers can expect
+
 OUTPUT FORMAT:
 Respond EXACTLY in this JSON format (no code blocks, no extra text):
-{"items":[{"title":"Your compelling 60-100 character YouTube title here","keywords":["primary-keyword","long-tail-phrase","trending-term","action-keyword","time-specific","related-topic","search-phrase"]},{"title":"Another engaging title","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"]}]}
+{"items":[{"title":"Your compelling 60-100 character YouTube title here","keywords":["primary-keyword","long-tail-phrase","trending-term","action-keyword","time-specific","related-topic","search-phrase"],"description":"A compelling 2-3 sentence description explaining what this video would cover and why viewers should watch it. This should highlight the main benefits and create additional interest."},{"title":"Another engaging title","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"],"description":"Another engaging description that explains the video content and value proposition to potential viewers."}]}
 
 Generate 5 titles that would make viewers immediately stop scrolling and click to watch the video.`;
 };
@@ -112,7 +123,6 @@ async function generateTitlesWithOllama(
 
     if (finalResult.success) {
       await incrementFeatureUsage("title_generation"); // ✅ Log usage
-    
     }
 
     return finalResult;
@@ -134,7 +144,7 @@ async function generateTitlesWithOpenRouter(
       "https://openrouter.ai/api/v1/chat/completions";
     console.log(`🌐 Using OpenRouter with model: ${model}`);
 
-    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator...`;
+    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator. Your task is to generate compelling YouTube titles with detailed descriptions and relevant keywords. Focus on creating titles that maximize click-through rates and search visibility.`;
     const userMessage = getYouTubePromptTemplate(prompt);
 
     const response = await axios.post(
@@ -234,7 +244,7 @@ function extractTitlesFromResponse(
       JSON.stringify(parsedData, null, 2)
     );
 
-    // Validate and extract items
+    // Method 1: Standard format validation
     if (
       parsedData.items &&
       Array.isArray(parsedData.items) &&
@@ -244,11 +254,14 @@ function extractTitlesFromResponse(
         .filter((item: any) => {
           const isValid =
             typeof item === "object" &&
+            item !== null &&
             typeof item.title === "string" &&
             item.title.trim().length >= 20 &&
             item.title.trim().length <= 120 &&
             Array.isArray(item.keywords) &&
-            item.keywords.length > 0;
+            item.keywords.length > 0 &&
+            typeof item.description === "string" &&
+            item.description.trim().length >= 20;
 
           if (!isValid) {
             console.log("⚠️ Invalid item filtered out:", item);
@@ -261,60 +274,73 @@ function extractTitlesFromResponse(
           keywords: item.keywords
             .filter((kw: any) => typeof kw === "string" && kw.trim().length > 0)
             .slice(0, 7),
+          description: item.description.trim(),
         }));
 
       if (validItems.length > 0) {
-        // Fill remaining slots with enhanced fallback titles if needed
-        const finalItems = [...validItems];
-        const fallbackTitles = generateEnhancedFallbackTitles(prompt);
-
-        while (finalItems.length < 5) {
-          const fallbackIndex = finalItems.length - validItems.length;
-          if (fallbackIndex < fallbackTitles.length) {
-            finalItems.push(fallbackTitles[fallbackIndex]);
-          } else {
-            break;
-          }
-        }
-
         console.log(
-          `✅ Successfully extracted ${finalItems.length} valid titles`
+          `✅ Successfully extracted ${validItems.length} valid titles using standard format`
         );
-        return {
-          success: true,
-          titles: finalItems,
-        };
+        return fillRemainingSlots(validItems, prompt);
       }
     }
 
-    // Try alternative parsing methods
-    console.log("⚠️ Standard parsing failed, trying alternative methods...");
+    // Method 2: Handle malformed flat array format (your edge case)
+    if (parsedData.items && Array.isArray(parsedData.items)) {
+      console.log("🔄 Attempting to parse malformed flat array format...");
+      const reconstructedItems = reconstructFromFlatArray(parsedData.items);
 
-    // Check if it's a direct array of items
+      if (reconstructedItems.length > 0) {
+        console.log(
+          `✅ Successfully reconstructed ${reconstructedItems.length} titles from flat array`
+        );
+        return fillRemainingSlots(reconstructedItems, prompt);
+      }
+    }
+
+    // Method 3: Handle direct array format
     if (Array.isArray(parsedData)) {
+      console.log("🔄 Attempting to parse direct array format...");
       const validItems = parsedData
         .filter(
           (item: any) =>
             typeof item === "object" &&
+            item !== null &&
             typeof item.title === "string" &&
-            Array.isArray(item.keywords)
+            Array.isArray(item.keywords) &&
+            typeof item.description === "string"
         )
-        .slice(0, 5);
+        .slice(0, 5)
+        .map((item: any) => ({
+          title: item.title.trim(),
+          keywords: item.keywords
+            .filter((kw: any) => typeof kw === "string" && kw.trim().length > 0)
+            .slice(0, 7),
+          description:
+            item.description?.trim() ||
+            generateDescriptionForTitle(item.title, prompt),
+        }));
 
       if (validItems.length > 0) {
         console.log(
-          `✅ Extracted ${validItems.length} titles from direct array`
+          `✅ Successfully extracted ${validItems.length} titles from direct array`
         );
-        return {
-          success: true,
-          titles: validItems,
-        };
+        return fillRemainingSlots(validItems, prompt);
       }
+    }
+
+    // Method 4: Try to extract from malformed JSON with regex patterns
+    const regexExtractedItems = extractWithRegexPatterns(content, prompt);
+    if (regexExtractedItems.length > 0) {
+      console.log(
+        `✅ Successfully extracted ${regexExtractedItems.length} titles using regex patterns`
+      );
+      return fillRemainingSlots(regexExtractedItems, prompt);
     }
 
     throw new Error("No valid title structure found in response");
   } catch (parseError: any) {
-    console.log("❌ JSON parsing failed:", parseError.message);
+    console.log("❌ All parsing methods failed:", parseError.message);
     console.log("🔄 Generating enhanced fallback titles");
 
     return {
@@ -323,8 +349,189 @@ function extractTitlesFromResponse(
     };
   }
 }
+// New helper function to reconstruct titles from flat array format
+function reconstructFromFlatArray(flatArray: any[]): TitleWithKeywords[] {
+  const reconstructedItems: TitleWithKeywords[] = [];
 
-// Generate enhanced YouTube-style fallback titles
+  try {
+    for (let i = 0; i < flatArray.length; i++) {
+      // Look for "title" string followed by actual title
+      if (flatArray[i] === "title" && i + 1 < flatArray.length) {
+        let title = "";
+        let keywords: string[] = [];
+        let description = "";
+
+        // Extract title
+        if (typeof flatArray[i + 1] === "string") {
+          title = flatArray[i + 1].trim();
+        }
+
+        // Look for keywords
+        for (let j = i + 2; j < flatArray.length; j++) {
+          if (flatArray[j] === "keywords" && j + 1 < flatArray.length) {
+            if (Array.isArray(flatArray[j + 1])) {
+              keywords = flatArray[j + 1]
+                .filter(
+                  (kw: any) => typeof kw === "string" && kw.trim().length > 0
+                )
+                .slice(0, 7);
+            }
+            break;
+          }
+        }
+
+        // Look for description
+        for (let j = i + 2; j < flatArray.length; j++) {
+          if (flatArray[j] === "description" && j + 1 < flatArray.length) {
+            if (typeof flatArray[j + 1] === "string") {
+              description = flatArray[j + 1].trim();
+            }
+            break;
+          }
+        }
+
+        // Validate and add the reconstructed item
+        if (title.length >= 20 && title.length <= 120 && keywords.length > 0) {
+          reconstructedItems.push({
+            title,
+            keywords,
+            description:
+              description || generateDescriptionForTitle(title, "content"),
+          });
+
+          // Stop if we have enough items
+          if (reconstructedItems.length >= 5) break;
+        }
+      }
+    }
+  } catch (error) {
+    console.log("⚠️ Error reconstructing from flat array:", error);
+  }
+
+  return reconstructedItems;
+}
+
+// New helper function to extract titles using regex patterns
+function extractWithRegexPatterns(
+  content: string,
+  prompt: string
+): TitleWithKeywords[] {
+  const extractedItems: TitleWithKeywords[] = [];
+
+  try {
+    // Pattern 1: Look for quoted titles that seem like YouTube titles
+    const titlePattern =
+      /"([^"]{30,100}[^"]*(?:2025|How|Secret|Why|I Tried|Ultimate)[^"]*?)"/g;
+    const titleMatches = content.match(titlePattern);
+
+    if (titleMatches) {
+      titleMatches.slice(0, 5).forEach((match, index) => {
+        const title = match.replace(/"/g, "").trim();
+        if (title.length >= 20 && title.length <= 120) {
+          extractedItems.push({
+            title,
+            keywords: generateKeywordsForTitle(title, prompt),
+            description: generateDescriptionForTitle(title, prompt),
+          });
+        }
+      });
+    }
+
+    // Pattern 2: Look for numbered lists that might be titles
+    const numberedPattern = /\d+\.\s*([^\n]{30,100})/g;
+    const numberedMatches = content.match(numberedPattern);
+
+    if (numberedMatches && extractedItems.length < 5) {
+      numberedMatches.slice(0, 5 - extractedItems.length).forEach((match) => {
+        const title = match.replace(/\d+\.\s*/, "").trim();
+        if (title.length >= 20 && title.length <= 120) {
+          extractedItems.push({
+            title,
+            keywords: generateKeywordsForTitle(title, prompt),
+            description: generateDescriptionForTitle(title, prompt),
+          });
+        }
+      });
+    }
+  } catch (error) {
+    console.log("⚠️ Error extracting with regex patterns:", error);
+  }
+
+  return extractedItems;
+}
+// Helper function to generate keywords for a title
+function generateKeywordsForTitle(title: string, prompt: string): string[] {
+  const baseKeywords = prompt
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  const titleWords = title
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+
+  // Combine and deduplicate
+  const allKeywords = [...baseKeywords, ...titleWords];
+  const uniqueKeywords = [...new Set(allKeywords)];
+
+  // Add some common YouTube keywords
+  const commonKeywords = [
+    "tutorial",
+    "guide",
+    "tips",
+    "2025",
+    "how to",
+    "secrets",
+    "exposed",
+  ];
+
+  return [...uniqueKeywords, ...commonKeywords].slice(0, 7);
+}
+
+// Helper function to fill remaining slots with fallback titles
+function fillRemainingSlots(
+  validItems: TitleWithKeywords[],
+  prompt: string
+): TitleGenerationResponse {
+  const finalItems = [...validItems];
+
+  if (finalItems.length < 5) {
+    const fallbackTitles = generateEnhancedFallbackTitles(prompt);
+    const needed = 5 - finalItems.length;
+
+    for (let i = 0; i < needed && i < fallbackTitles.length; i++) {
+      finalItems.push(fallbackTitles[i]);
+    }
+  }
+
+  return {
+    success: true,
+    titles: finalItems.slice(0, 5),
+  };
+}
+// Helper function to generate description for a title
+function generateDescriptionForTitle(
+  title: string,
+  originalPrompt: string
+): string {
+  const topic = originalPrompt.substring(0, 50).trim();
+  const currentYear = new Date().getFullYear();
+
+  // Generate contextual description based on title patterns
+  if (title.includes("How I") || title.includes("How to")) {
+    return `This comprehensive guide walks you through the exact steps and strategies used to achieve real results. You'll learn practical techniques that you can implement immediately to see measurable improvements in your ${topic} journey.`;
+  } else if (title.includes("Secret") || title.includes("Nobody Tells You")) {
+    return `Discover the insider knowledge and hidden strategies that most people never learn about ${topic}. This video reveals the techniques that experts use but rarely share publicly, giving you a competitive advantage.`;
+  } else if (title.includes("I Tried") || title.includes("What Happened")) {
+    return `Follow along as I document my real experience and share the honest results, including what worked, what didn't, and the surprising lessons learned. You'll get an authentic look at the actual process and outcomes.`;
+  } else if (title.includes("Why") && title.includes("Wrong")) {
+    return `Uncover the common misconceptions and mistakes that are holding most people back from success with ${topic}. Learn the correct approach and why conventional wisdom might be leading you astray.`;
+  } else {
+    return `Get expert insights and proven strategies for ${topic} that deliver real results. This video provides actionable advice and practical tips that you can use to improve your skills and achieve your goals in ${currentYear}.`;
+  }
+}
+
+// Generate enhanced YouTube-style fallback titles with descriptions
 function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
   const currentYear = new Date().getFullYear();
   const topicShort = prompt.substring(0, 30).trim();
@@ -347,6 +554,7 @@ function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
         `${currentYear}`,
         "complete",
       ],
+      description: `This comprehensive guide breaks down the exact system and strategies I used to master ${topicShort} this year. You'll learn the step-by-step process, common pitfalls to avoid, and proven techniques that actually work. Perfect for beginners and those looking to improve their skills.`,
     },
     {
       title: `5 ${topicShort} Secrets That Actually Work (Proven Results)`,
@@ -359,6 +567,7 @@ function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
         "strategies",
         "that work",
       ],
+      description: `Discover the five game-changing secrets that most people never learn about ${topicShort}. These proven strategies have been tested and refined to deliver real results. You'll learn insider techniques that can dramatically improve your success rate.`,
     },
     {
       title: `Why Everyone Gets ${topicShort} Wrong (The Real Truth)`,
@@ -371,6 +580,7 @@ function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
         "exposed",
         "facts",
       ],
+      description: `Uncover the common misconceptions and critical mistakes that are sabotaging most people's success with ${topicShort}. Learn why conventional wisdom is often wrong and discover the correct approach that actually leads to results.`,
     },
     {
       title: `I Tried ${topicShort} for 30 Days - Here's What Happened`,
@@ -383,6 +593,7 @@ function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
         "review",
         "what happened",
       ],
+      description: `Follow my honest 30-day journey experimenting with ${topicShort} and see the real, unfiltered results. I'll share what worked, what didn't, the unexpected challenges I faced, and the valuable lessons learned throughout the process.`,
     },
     {
       title: `Ultimate ${topicShort} Guide Nobody Talks About (${currentYear})`,
@@ -395,6 +606,7 @@ function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
         "expert",
         "secret",
       ],
+      description: `The most comprehensive and up-to-date guide to ${topicShort} that covers advanced strategies most content creators ignore. This expert-level resource provides in-depth knowledge and cutting-edge techniques for ${currentYear} and beyond.`,
     },
   ];
 }

@@ -12,10 +12,11 @@ import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Interface for title with keywords
+// Updated interface for title with keywords and description
 interface TitleWithKeywords {
   title: string;
   keywords: string[];
+  description: string; // Now required description field
 }
 
 // Function to save a generation of titles to database
@@ -34,16 +35,23 @@ async function saveTitleGeneration(
         provider,
         titles: {
           create: titles.map((titleData) => {
-            // Check if the title is a string or an object with title and keywords
+            // Check if the title is a string or an object with title, keywords, and description
             if (typeof titleData === "string") {
               return {
                 title: titleData,
                 keywords: [], // Empty array for titles without keywords
+                description: `Generated title for: ${prompt.substring(
+                  0,
+                  50
+                )}...`, // Default description
               };
             } else {
               return {
                 title: titleData.title,
                 keywords: titleData.keywords || [],
+                description:
+                  titleData.description ||
+                  `Generated title for: ${prompt.substring(0, 50)}...`, // Use provided description or fallback
               };
             }
           }),
@@ -149,6 +157,8 @@ export const generateTitles = async (
           await trackPopularContent(ContentType.TITLE, titleText, {
             fromPrompt: prompt.substring(0, 50),
             model,
+            hasDescription:
+              typeof titleData === "object" && !!titleData.description,
           });
         }
       }
@@ -163,7 +173,27 @@ export const generateTitles = async (
             result.provider
           );
           result.generationId = savedGeneration.id;
-          updateFavoriteFeature(res.locals.user.userId); // Update favorite feature usage
+
+          // ✅ ADD THIS: Include the saved title IDs in the response
+          result.titles = savedGeneration.titles.map((savedTitle, index) => {
+            const originalTitle = result.titles[index];
+
+            if (typeof originalTitle === "string") {
+              return {
+                id: savedTitle.id,
+                title: originalTitle,
+                keywords: savedTitle.keywords,
+                description: savedTitle.description,
+                isFavorite: savedTitle.isFavorite,
+              };
+            } else {
+              return {
+                ...originalTitle,
+                id: savedTitle.id,
+                isFavorite: savedTitle.isFavorite,
+              };
+            }
+          });
         } catch (saveError) {
           console.error("Error saving title generation:", saveError);
         }
@@ -225,7 +255,15 @@ export const getUserTitleGenerations = async (
       skip,
       take: limit,
       include: {
-        titles: true,
+        titles: {
+          select: {
+            id: true,
+            title: true,
+            keywords: true,
+            description: true, // Include description in the response
+            isFavorite: true,
+          },
+        },
       },
     });
 
@@ -286,7 +324,15 @@ export const getTitleGenerationById = async (
         userId,
       },
       include: {
-        titles: true,
+        titles: {
+          select: {
+            id: true,
+            title: true,
+            keywords: true,
+            description: true, // Include description in the response
+            isFavorite: true,
+          },
+        },
       },
     });
 
@@ -356,6 +402,13 @@ export const toggleFavoriteTitle = async (
           userId,
         },
       },
+      select: {
+        id: true,
+        title: true,
+        keywords: true,
+        description: true, // Include description
+        isFavorite: true,
+      },
     });
 
     if (!title) {
@@ -378,6 +431,13 @@ export const toggleFavoriteTitle = async (
     const updatedTitle = await prisma.generatedTitle.update({
       where: { id: titleId },
       data: { isFavorite: !title.isFavorite },
+      select: {
+        id: true,
+        title: true,
+        keywords: true,
+        description: true, // Include description in response
+        isFavorite: true,
+      },
     });
 
     // Track favorite action
@@ -395,6 +455,7 @@ export const toggleFavoriteTitle = async (
       await trackPopularContent(ContentType.TITLE, updatedTitle.title, {
         isFavorited: true,
         userId,
+        hasDescription: !!updatedTitle.description,
       });
     }
 
@@ -437,11 +498,18 @@ export const getFavoriteTitles = async (
         },
         isFavorite: true,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        keywords: true,
+        description: true, // Include description
+        isFavorite: true,
         generation: {
           select: {
+            id: true,
             prompt: true,
             createdAt: true,
+            provider: true,
           },
         },
       },

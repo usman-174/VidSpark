@@ -1,10 +1,11 @@
 //src/api/titlesApi.ts
 import axios from "./axiosInstance";
 
-// Interface for a title with keywords
+// Interface for a title with keywords and description
 interface TitleWithKeywords {
   title: string;
   keywords: string[];
+  description: string; // Now required description field
 }
 
 // Interface for a saved title with ID
@@ -12,10 +13,13 @@ export interface SavedTitle {
   id: string;
   title: string;
   keywords: string[];
+  description: string; // Now required description field
   isFavorite: boolean;
   generation?: {
+    id: string;
     prompt: string;
     createdAt: string;
+    provider?: string;
   };
 }
 
@@ -25,6 +29,7 @@ export interface TitleGeneration {
   prompt: string;
   createdAt: string;
   provider?: string;
+  userId: string;
   titles: SavedTitle[];
 }
 
@@ -49,10 +54,11 @@ export interface TitleGenerationOptions {
   saveTitles?: boolean;
 }
 
-// Title generation response
+// Title generation response - Updated to match backend response
 export interface TitleGenerationResponse {
   success: boolean;
-  titles: string[] | TitleWithKeywords[];
+  titles?: TitleWithKeywords[]; // Optional for backward compatibility
+  generation?: TitleGeneration; // The actual response structure from backend
   provider?: string;
   error?: string;
   generationId?: string;
@@ -80,8 +86,8 @@ export const titlesAPI = {
   // Generate titles
   generateTitles: async ({
     prompt,
-    maxLength = 400,
-    
+    maxLength = 1500,
+    model = "deepseek/deepseek-chat-v3-0324:free",
     includeKeywords = true,
     saveTitles = true,
   }: TitleGenerationOptions): Promise<TitleGenerationResponse> => {
@@ -89,7 +95,7 @@ export const titlesAPI = {
       const response = await axios.post<TitleGenerationResponse>("/titles/generate", {
         prompt,
         maxLength,
-     
+        model,
         includeKeywords,
         saveTitles,
       });
