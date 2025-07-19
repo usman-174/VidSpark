@@ -61,3 +61,5 @@ build/
 # ===============================
 poetry.lock
 Pipfile.lock
+
+# Do not ignore controllers/ or routes/ folders
