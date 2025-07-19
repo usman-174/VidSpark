@@ -9,37 +9,73 @@ import torch
 import logging
 from pathlib import Path
 
-# Configurable model path (change here for v2 or linear/v1)
-MODEL_TYPE = "xgboost"
-MODEL_VERSION = "v1"
-MODEL_BASE_PATH = Path("models") / MODEL_TYPE / MODEL_VERSION
+# Configurable model paths
+MODEL_CONFIGS = {
+    "v1": {
+        "path": Path("models") / "xgboost" / "v1",
+        "features": ["title", "description", "tags_cleaned"]  # Original model
+    },
+    "v2": {
+        "path": Path("models") / "xgboost" / "v2", 
+        "features": ["title", "description", "tags_cleaned", "category_id", "publish_hour", "days_to_trending"]  # New enhanced model
+    }
+}
 
-# Global cache
-model = None
-vectorizer_title = None
-vectorizer_desc = None
-vectorizer_tags = None
+# Global cache for multiple models
+models_cache = {}
 sentiment_pipeline = None
 logger = logging.getLogger("youtube_predictor")
 
-# Load model and vectorizers
-def load_model_components():
-    global model, vectorizer_title, vectorizer_desc, vectorizer_tags
-    if model is not None:
-        return
+def load_model_components(version="v1"):
+    """Load model components for specified version"""
+    global models_cache
+    
+    if version in models_cache:
+        return models_cache[version]
+    
+    if version not in MODEL_CONFIGS:
+        raise ValueError(f"Unknown model version: {version}. Available: {list(MODEL_CONFIGS.keys())}")
+    
     try:
-        logger.info(f"Loading model and vectorizers from {MODEL_BASE_PATH}...")
+        model_path = MODEL_CONFIGS[version]["path"]
+        logger.info(f"Loading model version {version} from {model_path}...")
+        
+        # Load XGBoost model
         model = xgb.Booster()
-        model.load_model(str(MODEL_BASE_PATH / "xgb_model.json"))
-        vectorizer_title = joblib.load(str(MODEL_BASE_PATH / "vectorizer_title.pkl"))
-        vectorizer_desc = joblib.load(str(MODEL_BASE_PATH / "vectorizer_desc.pkl"))
-        vectorizer_tags = joblib.load(str(MODEL_BASE_PATH / "vectorizer_tags.pkl"))
-        logger.info("[SUCCESS] All components loaded")
+        model.load_model(str(model_path / "xgb_model.json"))
+        
+        # Load vectorizers
+        vectorizer_title = joblib.load(str(model_path / "vectorizer_title.pkl"))
+        vectorizer_desc = joblib.load(str(model_path / "vectorizer_desc.pkl")) 
+        vectorizer_tags = joblib.load(str(model_path / "vectorizer_tags.pkl"))
+        
+        components = {
+            "model": model,
+            "vectorizer_title": vectorizer_title,
+            "vectorizer_desc": vectorizer_desc,
+            "vectorizer_tags": vectorizer_tags,
+            "features": MODEL_CONFIGS[version]["features"]
+        }
+        
+        # Load additional components for v2
+        if version == "v2":
+            try:
+                components["category_encoder"] = joblib.load(str(model_path / "category_encoder.pkl"))
+                components["numeric_scaler"] = joblib.load(str(model_path / "numeric_scaler.pkl"))
+                logger.info(f"[SUCCESS] Enhanced model v2 components loaded")
+            except FileNotFoundError as e:
+                logger.warning(f"[WARNING] Some v2 components missing: {e}")
+        
+        models_cache[version] = components
+        logger.info(f"[SUCCESS] Model {version} loaded and cached")
+        return components
+        
     except Exception as e:
-        logger.error(f"[ERROR] Error loading model components: {str(e)}")
+        logger.error(f"[ERROR] Error loading model {version}: {str(e)}")
         raise
 
 def load_sentiment_model():
+    """Load sentiment analysis model"""
     global sentiment_pipeline
     if sentiment_pipeline is not None:
         return
@@ -60,6 +96,7 @@ def load_sentiment_model():
         raise
 
 def get_sentiment_single(text: str) -> dict:
+    """Analyze sentiment for single text"""
     try:
         if not text or len(text.strip()) == 0:
             return {
@@ -87,6 +124,7 @@ def get_sentiment_single(text: str) -> dict:
         }
 
 def get_sentiment_batch(texts: list) -> list:
+    """Analyze sentiment for multiple texts"""
     try:
         if not texts:
             return []
@@ -126,33 +164,71 @@ def get_sentiment_batch(texts: list) -> list:
         logger.error(f"[ERROR] Batch sentiment analysis failed: {str(e)}")
         return [{"sentiment": "neutral", "confidence": 0.0, "scores": {"positive": 0.33, "neutral": 0.34, "negative": 0.33}}] * len(texts)
 
-# Controller functions
+# Legacy controller (maintains backward compatibility)
 async def predict_views_controller(video):
-    load_model_components()
+    """Legacy prediction controller - uses v1 model"""
+    return await predict_views_controller_versioned(video, version="v1")
+
+async def predict_views_controller_versioned(video, version="v1"):
+    """Versioned prediction controller"""
+    components = load_model_components(version)
+    
     try:
+        # Extract components
+        model = components["model"]
+        vectorizer_title = components["vectorizer_title"]
+        vectorizer_desc = components["vectorizer_desc"] 
+        vectorizer_tags = components["vectorizer_tags"]
+        
+        # Vectorize text features
         X_title = vectorizer_title.transform([video.title])
         X_desc = vectorizer_desc.transform([video.description])
         X_tags = vectorizer_tags.transform([video.tags_cleaned])
-        X_combined = hstack([X_title, X_desc, X_tags])
+        
+        # Handle different model versions
+        if version == "v1":
+            # Original model - text features only
+            X_combined = hstack([X_title, X_desc, X_tags])
+        elif version == "v2":
+            # Enhanced model - text + numeric features
+            category_encoder = components["category_encoder"]
+            numeric_scaler = components["numeric_scaler"]
+            
+            # Process numeric features
+            category_encoded = category_encoder.transform([[video.category_id]])
+            numeric_scaled = numeric_scaler.transform([[video.publish_hour, video.days_to_trending]])
+            numeric_features = np.hstack([category_encoded, numeric_scaled])
+            
+            # Combine all features
+            X_combined = hstack([X_title, X_desc, X_tags, numeric_features])
+        
+        # Make prediction
         dmatrix = xgb.DMatrix(X_combined)
         y_pred_log = model.predict(dmatrix)
         y_pred = np.expm1(y_pred_log)
         predicted_views = int(y_pred[0])
+        
+        # Calculate confidence
         confidence = (
             "High" if predicted_views > 1_000_000 else
             "Medium" if predicted_views > 100_000 else
             "Low"
         )
+        
         return {
             "predicted_views": predicted_views,
             "confidence": confidence,
+            "model_version": version,
+            "features_used": components["features"],
             "processed_at": datetime.now().isoformat()
         }
+        
     except Exception as e:
-        logger.error(f"[ERROR] Prediction failed: {str(e)}")
+        logger.error(f"[ERROR] Prediction failed for version {version}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 async def sentiment_analysis_controller(sentiment_input):
+    """Sentiment analysis controller"""
     load_sentiment_model()
     try:
         result = get_sentiment_single(sentiment_input.text)
@@ -167,6 +243,7 @@ async def sentiment_analysis_controller(sentiment_input):
         raise HTTPException(status_code=500, detail=f"Sentiment analysis failed: {str(e)}")
 
 async def batch_sentiment_analysis_controller(batch_input):
+    """Batch sentiment analysis controller"""
     load_sentiment_model()
     try:
         results = get_sentiment_batch(batch_input.texts)
@@ -180,27 +257,51 @@ async def batch_sentiment_analysis_controller(batch_input):
         raise HTTPException(status_code=500, detail=f"Batch sentiment analysis failed: {str(e)}")
 
 async def health_check_controller():
-    load_model_components()
-    load_sentiment_model()
+    """Health check controller"""
     try:
-        dummy_title = vectorizer_title.transform(["test"])
-        dummy_desc = vectorizer_desc.transform(["test"])
-        dummy_tags = vectorizer_tags.transform(["test"])
-        dummy_combined = hstack([dummy_title, dummy_desc, dummy_tags])
-        dummy_dmatrix = xgb.DMatrix(dummy_combined)
-        model.predict(dummy_dmatrix)
+        # Test both model versions
+        v1_components = load_model_components("v1")
+        v2_components = load_model_components("v2") 
+        load_sentiment_model()
+        
+        # Test v1 model
+        dummy_title = v1_components["vectorizer_title"].transform(["test"])
+        dummy_desc = v1_components["vectorizer_desc"].transform(["test"])
+        dummy_tags = v1_components["vectorizer_tags"].transform(["test"])
+        dummy_combined_v1 = hstack([dummy_title, dummy_desc, dummy_tags])
+        dummy_dmatrix_v1 = xgb.DMatrix(dummy_combined_v1)
+        v1_components["model"].predict(dummy_dmatrix_v1)
+        
+        # Test v2 model
+        dummy_title_v2 = v2_components["vectorizer_title"].transform(["test"])
+        dummy_desc_v2 = v2_components["vectorizer_desc"].transform(["test"])
+        dummy_tags_v2 = v2_components["vectorizer_tags"].transform(["test"])
+        dummy_category = v2_components["category_encoder"].transform([[1]])
+        dummy_numeric = v2_components["numeric_scaler"].transform([[12, 1]])
+        dummy_numeric_features = np.hstack([dummy_category, dummy_numeric])
+        dummy_combined_v2 = hstack([dummy_title_v2, dummy_desc_v2, dummy_tags_v2, dummy_numeric_features])
+        dummy_dmatrix_v2 = xgb.DMatrix(dummy_combined_v2)
+        v2_components["model"].predict(dummy_dmatrix_v2)
+        
+        # Test sentiment
         test_sentiment = get_sentiment_single("This is a test")
+        
         return {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
-            "model_loaded": True,
+            "models_loaded": {
+                "v1": True,
+                "v2": True
+            },
             "sentiment_loaded": True,
+            "available_versions": list(MODEL_CONFIGS.keys()),
             "test_sentiment": test_sentiment
         }
+        
     except Exception as e:
         logger.error(f"[ERROR] Health check failed: {str(e)}")
         return {
             "status": "unhealthy",
             "timestamp": datetime.now().isoformat(),
             "error": str(e)
-        } 
+        }

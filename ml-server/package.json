@@ -1,0 +1,22 @@
+{
+  "name": "youtube-views-predictor-api",
+  "version": "2.0.0",
+  "description": "YouTube Views Predictor API with ML models and sentiment analysis",
+  "scripts": {
+    "start": "python -m uvicorn server:app --reload --host 0.0.0.0 --port 7000",
+    "dev": "python -m uvicorn server:app --reload --host 0.0.0.0 --port 7000",
+    "prod": "python -m uvicorn server:app --host 0.0.0.0 --port 7000 --workers 4",
+    "debug": "python -m uvicorn server:app --reload --host 0.0.0.0 --port 7000 --log-level debug",
+    "test-server": "python -m uvicorn server:app --host 127.0.0.1 --port 8001",
+    "open": "start http://localhost:7000",
+    "docs": "start http://localhost:7000/docs",
+    "health": "start http://localhost:7000/health",
+    "dev-open": "npm run open && npm run dev",
+    "check-deps": "python -c \"import uvicorn, fastapi, xgboost, transformers; print('✅ All dependencies installed')\"",
+    "install-deps": "pip install -r requirements.txt",
+    "server-info": "echo Server will run on http://localhost:7000 && echo Docs available at http://localhost:7000/docs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
