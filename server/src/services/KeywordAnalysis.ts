@@ -41,6 +41,8 @@ async function searchYouTubeVideos(
 
   try {
     const response = await axios.get<YouTubeSearchResponse>(url, { params });
+    console.log("items==>,", response.data.items, "found for keyword:", keyword);
+    
     return response.data.items;
   } catch (error: any) {
     console.error(
@@ -71,6 +73,7 @@ async function getVideoDetails(
     const response = await axios.get<YouTubeVideoDetailsResponse>(url, {
       params,
     });
+  
     return response.data.items;
   } catch (error: any) {
     console.error(
@@ -127,6 +130,8 @@ function analyzeTrendDirection(
 }
 
 function getTopChannels(videos: VideoAnalysis[]): string[] {
+  console.log("🔍 Analyzing top channels from video data...",videos);
+  
   const channelCounts = videos.reduce((acc, video) => {
     acc[video.channelName] = (acc[video.channelName] || 0) + 1;
     return acc;
@@ -194,7 +199,7 @@ Provide exactly 3 actionable insights for content creators as bullet points.`;
     throw new Error("No valid insights extracted from Ollama response");
   } catch (ollamaError) {
     console.log(
-      `⚠️ Ollama failed: ${ollamaError}. Falling back to OpenRouter...`
+      `⚠️ Ollama failed: ${ollamaError.message}. Falling back to OpenRouter...`
     );
 
     // Fallback to OpenRouter
@@ -252,7 +257,7 @@ Provide exactly 3 actionable insights for content creators as bullet points.`;
       }
       throw new Error("No valid insights extracted from OpenRouter response");
     } catch (openRouterError) {
-      console.error("❌ Both Ollama and OpenRouter failed:", openRouterError);
+      console.error("❌ Both Ollama and OpenRouter failed:", openRouterError.message);
 
       // Return fallback insights
       return [
@@ -312,9 +317,9 @@ async function saveKeywordAnalysis(
       },
     });
 
-    console.log(
-      `📈 Updated keyword analysis for "${keyword}". New search count: ${keywordAnalysisRecord.searchCount}`
-    );
+    // console.log(
+    //   `📈 Updated keyword analysis for "${keyword}". New search count: ${keywordAnalysisRecord.searchCount}`
+    // );
   } else {
     // Create new record
     keywordAnalysisRecord = await prisma.keywordAnalysis.create({
@@ -325,7 +330,7 @@ async function saveKeywordAnalysis(
       },
     });
 
-    console.log(`🆕 Created new keyword analysis for "${keyword}"`);
+    // console.log(`🆕 Created new keyword analysis for "${keyword}"`);
   }
 
   // Save keyword insights
@@ -419,7 +424,7 @@ export async function getUserKeywordHistory(
       })),
     };
   } catch (error) {
-    console.error("Error fetching user keyword history:", error);
+    console.error("Error fetching user keyword history:",  error.message);
     return { success: false, history: [] };
   }
 }
@@ -428,20 +433,7 @@ export async function getUserKeywordHistory(
 export async function getTrendingKeywords(limit: number = 10) {
   try {
     // Let's first check what data we have
-    const allKeywordAnalyses = await prisma.keywordAnalysis.findMany({
-      where: {
-        lastUpdated: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-        },
-      },
-      select: {
-        keyword: true,
-        searchCount: true,
-        lastUpdated: true,
-      },
-    });
-
-    console.log("🔍 All keyword analyses in last 7 days:", allKeywordAnalyses);
+    
 
     // Use Prisma groupBy
     const trending = await prisma.keywordAnalysis.groupBy({
@@ -465,7 +457,7 @@ export async function getTrendingKeywords(limit: number = 10) {
       take: limit,
     });
 
-    console.log("📊 Trending keywords from Prisma groupBy:", trending);
+    // console.log("📊 Trending keywords from Prisma groupBy:", trending);
 
     return {
       success: true,
@@ -476,7 +468,7 @@ export async function getTrendingKeywords(limit: number = 10) {
       })),
     };
   } catch (error) {
-    console.error("Error fetching trending keywords:", error);
+    console.error("Error fetching trending keywords:", error.message);
     return { success: false, trending: [] };
   }
 }
@@ -630,7 +622,7 @@ export async function analyzeKeyword(
         `💾 Saved keyword analysis to database with ID: ${analysisId}`
       );
     } catch (dbError) {
-      console.error("Database save error:", dbError);
+      console.error("Database save error:", dbError.message);
       // Continue without failing the entire request
     }
 
