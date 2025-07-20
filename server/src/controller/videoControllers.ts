@@ -53,25 +53,6 @@ const isValidComment = (comment: string): boolean => {
   return (alphanumericCount / totalLength) >= 0.3;
 };
 
-// // Function to call Python API for sentiment analysis
-// const callPythonSentimentAPI = async (text: string): Promise<any> => {
-//   try {
-//     const response = await axios.post(`${PYTHON_API_BASE_URL}/sentiment`, {
-//       text: text
-//     }, {
-//       timeout: 30000, // 30 second timeout
-//       headers: {
-//         'Content-Type': 'application/json'
-//       }
-//     });
-//     return response.data;
-//   } catch (error: any) {
-//     console.error('Error calling Python sentiment API:', error.message);
-//     throw new Error(`Sentiment analysis failed: ${error.message}`);
-//   }
-// };
-
-// Function to call Python API for batch sentiment analysis
 const callPythonBatchSentimentAPI = async (texts: string[]): Promise<any> => {
   try {
     const response = await axios.post(`${PYTHON_API_BASE_URL}/batch-sentiment`, {

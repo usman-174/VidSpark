@@ -158,7 +158,7 @@ async function searchYouTubeVideos(query: string, maxResults: number = 10): Prom
   }
 }
 
-async function getTrendingVideos(categoryId: string = "0", maxResults: number = 15): Promise<YouTubeVideoData[]> {
+async function getTrendingVideos( maxResults: number = 15): Promise<YouTubeVideoData[]> {
   try {
     await ensureApiKeysLoaded();
     const YOUTUBE_API_KEY = getNextApiKey();
@@ -613,7 +613,7 @@ export async function generateTitle({
       // OPTIMIZED: Run YouTube API calls in parallel with timeout
       const youtubePromise = Promise.allSettled([
         searchYouTubeVideos(prompt, 10),
-        getTrendingVideos("0", 15),
+        getTrendingVideos(15),
       ]);
 
       const results = await Promise.race([

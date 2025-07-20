@@ -8,7 +8,7 @@ import PackagesPage from "./pages/Admin/Packages";
 import AdminPayments from "./pages/Admin/Payments";
 import UsersPage from "./pages/Admin/Users";
 import YTVideos from "./pages/Admin/YTVideos";
-import ArchitectureDiagram from "./pages/Architecture";
+import ArchitectureDiagram from "./pages/flows/HighLevelArchitecture";
 import EmailVerification from "./pages/emailVerification";
 import EvaluationMatric from "./pages/EvaluationMatric";
 import { ForgotPassword } from "./pages/ForgotPassword";
@@ -27,6 +27,12 @@ import Home from "./pages/Home";
 import KeywordAnalysis from "./pages/KeywordAnalysis";
 import Login from "./pages/Login";
 import useAuthStore from "./store/authStore";
+import TitleGenerationArchitecture from "./pages/flows/TitleGenerationArchitecture";
+import ContentEvaluationArchitecture from "./pages/flows/ContentEvaluationArhitecture";
+import SentimentAnalysisArchitecture from "./pages/flows/SentimentalArchitecture";
+import ArchitectureHomepage from "./pages/flows/ArchitectureHomepage";
+import HighLevelArchitecture from "./pages/flows/HighLevelArchitecture";
+import KeywordAnalysisArchitecture from "./pages/flows/KeywordAnalysisArchitecture";
 
 // import ArchitectureDiagram from ";
 function App() {
@@ -53,8 +59,24 @@ function App() {
       <Toaster position="bottom-right" />
 
       <Routes>
-        <Route path="/arcx" element={<ArchitectureDiagram />}/>
-
+        <Route path="/flow" element={<ArchitectureHomepage />} />
+        <Route path="/arc" element={<HighLevelArchitecture />} />
+        <Route
+          path="/flow/title-generation"
+          element={<TitleGenerationArchitecture />}
+        />
+        <Route
+          path="/flow/content-evaluation"
+          element={<ContentEvaluationArchitecture />}
+        />
+        <Route
+          path="/flow/sentimental-analysis"
+          element={<SentimentAnalysisArchitecture />}
+        />
+        <Route
+          path="/flow/keyword-analysis"
+          element={<KeywordAnalysisArchitecture />}
+        />
         {/* Public routes */}
         <Route element={<AuthRoute />}>
           <Route path="/login" element={<Login />} />
@@ -108,7 +130,6 @@ export default App;
 
 // components/ProtectedRoute.tsx
 
-
 interface ProtectedRouteProps {
   allowedRoles: ("USER" | "ADMIN")[];
 }
@@ -130,7 +151,7 @@ const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
 export const AuthRoute = () => {
   const { isAuthenticated, user } = useAuthStore();
   console.log("AuthRoute - User:", user);
-  
+
   return isAuthenticated ? (
     <Navigate to={user?.role === "ADMIN" ? "/admin" : "/"} />
   ) : (
