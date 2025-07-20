@@ -44,7 +44,7 @@ const KeywordAnalysisMain = ({
   onKeywordChange,
 }: KeywordAnalysisMainProps) => {
   const { user } = useAuthStore();
-  const navigate= useNavigate();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const hasCredits = user?.creditBalance ? user.creditBalance > 0 : false;
 
@@ -104,7 +104,26 @@ const KeywordAnalysisMain = ({
     },
   });
 
+  const isAlphanumericAndSpacesOnly = (str: string) => {
+    return /^[a-zA-Z0-9\s]+$/.test(str);
+  };
+
   const handleAnalyze = async () => {
+    // Validate keyword input
+    if (!keyword.trim()) {
+      toast.error("Please enter a keyword to analyze");
+      return;
+    }
+    // Check if the keyword is valid
+    if (keyword.length < 3) {
+      toast.error("Keyword must be at least 3 characters long");
+      return;
+    }
+    // Validate keyword is alphanumeric and spaces only
+    if (!isAlphanumericAndSpacesOnly(keyword)) {
+      toast.error("Keyword must be alphanumeric and spaces only");
+      return;
+    }
     const validation = keywordAnalysisUtils.validateKeyword(keyword);
     if (!validation.isValid) {
       toast.error(validation.error || "Invalid keyword");

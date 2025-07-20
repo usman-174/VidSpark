@@ -103,7 +103,8 @@ const IdeasOfTheDay = () => {
               <div key={idea.id} className="text-sm space-y-2 border-b pb-3 last:border-b-0">
                 <div className="flex items-start justify-between gap-2">
                   <a
-                    href={idea.link}
+                    // href={idea.link}
+                    href="#"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block font-semibold text-blue-600 hover:underline line-clamp-2 flex-1"
