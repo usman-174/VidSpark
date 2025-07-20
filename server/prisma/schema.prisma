@@ -141,14 +141,7 @@ model EvaluationMetric {
   @@map("evaluation_metrics")
 }
 
-// model KeywordAnalysis {
-//   id        String   @id @default(uuid())
-//   userId    String
-//   videoUrl  String
-//   keywords  String[] // Store keywords as a string array
-//   createdAt DateTime @default(now())
-//   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-// }
+
 
 model PopularKeyword {
   id        String   @id @default(uuid())

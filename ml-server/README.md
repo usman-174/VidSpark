@@ -29,3 +29,14 @@ pip install -r requirements.txt
 ```bash
 python -m uvicorn server:app --reload --host 0.0.0.0 --port 7000
 ```
+
+## Folder Structure (Updated)
+
+- `server.py`: Main FastAPI app entrypoint. Only initializes the app and includes routes.
+- `controllers/`: Contains business logic for prediction and sentiment analysis.
+- `routes/`: Contains all FastAPI route definitions.
+- `models/`: Contains ML models and vectorizers, organized by type and version (e.g., `xgboost/v1/`).
+
+## Changing Model Version/Type
+
+To switch to a different model version or type (e.g., `xgboost/v2` or `linear/v1`), update the model path in the controller code. The structure is designed for easy extensibility.
