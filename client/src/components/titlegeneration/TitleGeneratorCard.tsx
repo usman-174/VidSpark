@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { useTitleGenerator } from "@/hooks/useTitleGenerator";
+import { useTitleManager } from "@/hooks/useTitleManager";
 
 interface TitleGeneratorCardProps {
   onFavoritesClick: () => void;
@@ -39,15 +39,15 @@ const TitleGeneratorCard: React.FC<TitleGeneratorCardProps> = ({
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  // Use the new hook
+  // Use the merged hook
   const {
-    titles,
+    generatedTitles: titles,
     isGenerating,
     isTogglingFavorite,
     generateTitles,
     toggleFavorite,
     clearTitles,
-  } = useTitleGenerator();
+  } = useTitleManager();
 
   // Local UI state
   const [keywords, setKeywords] = useState("");

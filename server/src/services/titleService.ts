@@ -1,12 +1,57 @@
-// titleService.ts - Enhanced YouTube Title Generator with Advanced Prompt Engineering
+// titleService.ts - Optimized YouTube Title Generator
 import axios from "axios";
 import { incrementFeatureUsage, updateFavoriteFeature } from "./statsService";
+import { getNextApiKey, loadKeysFromDB } from "../scripts/YTscraper";
 
-// Define response types
+// CACHE API KEYS TO AVOID REPEATED DB CALLS
+let apiKeysLoaded = false;
+let lastKeyLoadTime = 0;
+const KEY_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+async function ensureApiKeysLoaded() {
+  const now = Date.now();
+  if (!apiKeysLoaded || (now - lastKeyLoadTime) > KEY_CACHE_DURATION) {
+    await loadKeysFromDB();
+    apiKeysLoaded = true;
+    lastKeyLoadTime = now;
+    console.log('🔑 API keys refreshed');
+  }
+}
+
+// YouTube API Data Interfaces
+interface YouTubeVideoData {
+  title: string;
+  description: string;
+  tags: string[];
+  viewCount: string;
+  likeCount: string;
+  commentCount: string;
+  publishedAt: string;
+  channelTitle: string;
+  categoryId: string;
+}
+
+interface YouTubeSearchResult {
+  videoId: string;
+  title: string;
+  description: string;
+  channelTitle: string;
+  publishedAt: string;
+  viewCount?: string;
+}
+
+interface YouTubeInsights {
+  trendingKeywords: string[];
+  successfulPatterns: string[];
+  avgTitleLength: number;
+  topPerformingTitles: string[];
+}
+
+// KEEP YOUR EXISTING INTERFACES EXACTLY THE SAME
 export interface TitleWithKeywords {
   title: string;
   keywords: string[];
-  description: string; // Now required description for the title
+  description: string;
 }
 
 interface TitleGenerationResponse {
@@ -21,199 +66,414 @@ interface TitleGenerationOptions {
   prompt: string;
   maxLength?: number;
   model?: string;
+  useYouTubeAnalysis?: boolean;
+  searchQuery?: string;
+  competitorVideoIds?: string[];
 }
 
-// Enhanced YouTube-specific prompt template
-const getYouTubePromptTemplate = (prompt: string): string => {
+// OPTIMIZED YOUTUBE API FUNCTIONS
+async function getVideoDetails(videoId: string): Promise<YouTubeVideoData | null> {
+  try {
+    await ensureApiKeysLoaded(); // Only load once per session
+    const YOUTUBE_API_KEY = getNextApiKey();
+
+    const YOUTUBE_VIDEO_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`;
+    
+    const videoResponse = await axios.get(YOUTUBE_VIDEO_URL, {
+      timeout: 10000, // 10 second timeout
+    });
+
+    if (!videoResponse.data.items || videoResponse.data.items.length === 0) {
+      return null;
+    }
+
+    const video = videoResponse.data.items[0];
+    const snippet = video.snippet;
+    const statistics = video.statistics;
+
+    return {
+      title: snippet.title,
+      description: snippet.description || '',
+      tags: snippet.tags || [],
+      viewCount: statistics.viewCount || "0",
+      likeCount: statistics.likeCount || "0",
+      commentCount: statistics.commentCount || "0",
+      publishedAt: snippet.publishedAt,
+      channelTitle: snippet.channelTitle,
+      categoryId: snippet.categoryId,
+    };
+  } catch (error: any) {
+    console.error(`❌ Failed to fetch video details for ${videoId}:`, error.response?.status || error.message);
+    return null;
+  }
+}
+
+async function searchYouTubeVideos(query: string, maxResults: number = 10): Promise<YouTubeSearchResult[]> {
+  try {
+    await ensureApiKeysLoaded();
+    const YOUTUBE_API_KEY = getNextApiKey();
+
+    const SEARCH_URL = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=${maxResults}&order=relevance&key=${YOUTUBE_API_KEY}`;
+    
+    const searchResponse = await axios.get(SEARCH_URL, {
+      timeout: 10000,
+    });
+
+    const results: YouTubeSearchResult[] = [];
+
+    // OPTIMIZED: Get video details in batches instead of one by one
+    const videoIds = searchResponse.data.items?.map((item: any) => item.id.videoId) || [];
+    
+    if (videoIds.length > 0) {
+      // Batch request for video details
+      const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${YOUTUBE_API_KEY}`;
+      let videoStats: any = {};
+      
+      try {
+        const statsResponse = await axios.get(videosUrl, { timeout: 10000 });
+        statsResponse.data.items?.forEach((item: any) => {
+          videoStats[item.id] = item.statistics;
+        });
+      } catch (statsError) {
+        console.warn('⚠️ Failed to fetch video statistics in batch');
+      }
+
+      for (const item of searchResponse.data.items || []) {
+        const stats = videoStats[item.id.videoId];
+        results.push({
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          description: item.snippet.description || '',
+          channelTitle: item.snippet.channelTitle,
+          publishedAt: item.snippet.publishedAt,
+          viewCount: stats?.viewCount,
+        });
+      }
+    }
+
+    return results;
+  } catch (error: any) {
+    console.error("❌ Failed to search YouTube videos:", error.response?.status || error.message);
+    return [];
+  }
+}
+
+async function getTrendingVideos(categoryId: string = "0", maxResults: number = 15): Promise<YouTubeVideoData[]> {
+  try {
+    await ensureApiKeysLoaded();
+    const YOUTUBE_API_KEY = getNextApiKey();
+
+    const TRENDING_URL = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=PK&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`;
+    
+    const trendingResponse = await axios.get(TRENDING_URL, {
+      timeout: 15000, // Longer timeout for trending videos
+    });
+
+    const trendingVideos: YouTubeVideoData[] = [];
+
+    for (const video of trendingResponse.data.items || []) {
+      const snippet = video.snippet;
+      const statistics = video.statistics;
+
+      trendingVideos.push({
+        title: snippet.title,
+        description: snippet.description || '',
+        tags: snippet.tags || [],
+        viewCount: statistics.viewCount || "0",
+        likeCount: statistics.likeCount || "0",
+        commentCount: statistics.commentCount || "0",
+        publishedAt: snippet.publishedAt,
+        channelTitle: snippet.channelTitle,
+        categoryId: snippet.categoryId,
+      });
+    }
+
+    return trendingVideos;
+  } catch (error: any) {
+    console.error("❌ Failed to fetch trending videos:", error.response?.status || error.message);
+    return [];
+  }
+}
+
+// OPTIMIZED ANALYSIS FUNCTION
+function generateYouTubeInsights(videos: YouTubeVideoData[], searchResults: YouTubeSearchResult[]): YouTubeInsights {
+  const allTitles = [
+    ...videos.map((v) => v.title),
+    ...searchResults.map((r) => r.title),
+  ];
+
+  if (allTitles.length === 0) {
+    return {
+      trendingKeywords: ['tutorial', 'guide', '2025', 'tips', 'how to'],
+      successfulPatterns: ['How to', 'Ultimate', 'Secret'],
+      avgTitleLength: 65,
+      topPerformingTitles: []
+    };
+  }
+
+  const keywordFreq: { [key: string]: number } = {};
+  const patterns: string[] = [];
+  let totalLength = 0;
+
+  // Process tags from videos
+  videos.forEach((video) => {
+    video.tags.forEach((tag) => {
+      const cleanTag = tag.toLowerCase().trim();
+      if (cleanTag.length > 2 && cleanTag.length < 20) { // Filter reasonable tags
+        keywordFreq[cleanTag] = (keywordFreq[cleanTag] || 0) + 1;
+      }
+    });
+  });
+
+  // Process titles
+  allTitles.forEach((title) => {
+    totalLength += title.length;
+
+    // Extract common patterns
+    const titleLower = title.toLowerCase();
+    if (titleLower.includes("how to") || titleLower.includes("how i")) patterns.push("How to");
+    if (titleLower.includes("i tried") || titleLower.includes("testing")) patterns.push("I tried");
+    if (titleLower.includes("secret") || titleLower.includes("hidden")) patterns.push("Secret");
+    if (titleLower.includes("why") && titleLower.includes("wrong")) patterns.push("Why X is Wrong");
+    if (titleLower.includes("ultimate") || titleLower.includes("complete")) patterns.push("Ultimate");
+    if (/\d+/.test(title)) patterns.push("Numbers");
+    if (title.includes("2025") || title.includes("2024")) patterns.push("Current Year");
+
+    // Extract words for keywords
+    const words = title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .split(/\s+/)
+      .filter((word) => word.length > 3 && word.length < 15);
+
+    words.forEach((word) => {
+      keywordFreq[word] = (keywordFreq[word] || 0) + 1;
+    });
+  });
+
+  const trendingKeywords = Object.entries(keywordFreq)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([keyword]) => keyword);
+
+  return {
+    trendingKeywords,
+    successfulPatterns: [...new Set(patterns)],
+    avgTitleLength: Math.round(totalLength / allTitles.length),
+    topPerformingTitles: videos.slice(0, 3).map((v) => v.title),
+  };
+}
+
+// ENHANCED PROMPT TEMPLATE WITH BETTER STRUCTURE
+const getYouTubePromptTemplate = (prompt: string, youtubeInsights?: YouTubeInsights): string => {
   const currentYear = new Date().getFullYear();
 
-  return `You are an expert YouTube SEO specialist and viral content creator with deep knowledge of YouTube's algorithm and viewer psychology. Generate 3 highly engaging, click-worthy YouTube video titles that will maximize both search visibility and click-through rates.
+  let insightsSection = "";
+  
+  if (youtubeInsights && youtubeInsights.trendingKeywords.length > 0) {
+    insightsSection = `
+🎯 YOUTUBE PERFORMANCE INSIGHTS:
 
-CRITICAL REQUIREMENTS:
-- Each title must be 60-100 characters long (optimal for YouTube display)
-- Use proven psychological triggers and power words
-- Include specific numbers, years, or timeframes when relevant
-- Create curiosity gaps that compel viewers to click
-- Optimize for YouTube's search algorithm and recommendation system
-- Feel fresh, current, and relevant for ${currentYear}
-- MUST include a compelling description for each title (5-10 sentences explaining what the video would cover)
+📈 TRENDING KEYWORDS: ${youtubeInsights.trendingKeywords.slice(0, 8).join(", ")}
+🏆 SUCCESSFUL PATTERNS: ${youtubeInsights.successfulPatterns.slice(0, 5).join(", ")}
+📏 OPTIMAL TITLE LENGTH: ~${youtubeInsights.avgTitleLength} characters
+🔥 TOP PERFORMING EXAMPLES:
+${youtubeInsights.topPerformingTitles.slice(0, 3).map((title, i) => `${i + 1}. "${title.substring(0, 80)}${title.length > 80 ? '...' : ''}"`).join('\n')}
 
-PSYCHOLOGICAL TRIGGERS TO INCORPORATE:
-🔥 Urgency: "Before It's Too Late", "Right Now", "Today", "Immediately"
-🤔 Curiosity: "Secret", "Hidden", "What Nobody Tells You", "Shocking Truth"
-👑 Authority: "Expert", "Pro", "Advanced", "Ultimate", "Master"
-👥 Social Proof: "Everyone", "Most People", "Millions", "Thousands"
-💪 Benefit-driven: "How to", "Ways to", "Steps to", "Proven Method"
-⚡ Controversy: "Why X is Wrong", "The Truth About", "Exposed"
-🎯 Exclusivity: "Only", "Exclusive", "Private", "Insider"
-📈 Results: "That Actually Work", "Proven", "Guaranteed", "Results"
+💡 OPTIMIZATION STRATEGY:
+- Use these trending keywords: ${youtubeInsights.trendingKeywords.slice(0, 5).join(", ")}
+- Apply successful pattern: ${youtubeInsights.successfulPatterns[0] || "How-to format"}
+- Target length: ${youtubeInsights.avgTitleLength} characters
+`;
+  }
 
-PROVEN YOUTUBE TITLE PATTERNS (USE THESE):
-✅ "How I [Achieved Specific Result] in [Timeframe] (Exact Method)"
-✅ "The [Number] [Thing] That [Positive Outcome] (Most People Miss This)"
-✅ "[Number] [Thing] You Should Never [Action] (Do This Instead)"
-✅ "I Tried [Thing/Method] for [Time Period] - Here's What Happened"
-✅ "Why [Popular Belief] is Actually Wrong (The Real Truth)"
-✅ "[Number] Signs You're [Situation] (and How to Fix It Fast)"
-✅ "What [Expert/Successful Person] Won't Tell You About [Topic]"
-✅ "[Thing] That Changed My [Life/Business] in [Timeframe]"
-✅ "The Secret [Method/Strategy] [Successful People] Don't Want You to Know"
-✅ "[Number] Minute [Action] That [Amazing Result]"
+  return `You are an expert YouTube SEO specialist. Generate 5 compelling YouTube titles optimized for views and engagement.
 
-CONTENT ANALYSIS:
-Topic/Content: "${prompt}"
+${insightsSection}
 
-KEYWORD STRATEGY:
-For each title, provide 5-7 highly relevant SEO keywords that include:
-- Primary topic keywords
-- Long-tail search phrases
-- Trending related terms
-- Action-oriented keywords
-- Year/time-specific keywords
+REQUIREMENTS:
+- 60-100 characters per title
+- Include trending keywords when relevant
+- Use psychological triggers (curiosity, urgency, benefit)
+- Current year: ${currentYear}
+- Detailed descriptions (15-25 sentences each)
 
-DESCRIPTION REQUIREMENTS:
-For each title, create a compelling 8-12(long length) sentence description that:
-- Explains what the video would cover
-- Highlights the main benefit or value proposition
-- Creates additional interest and context
-- Uses persuasive language to encourage viewing
-- Mentions specific outcomes or results viewers can expect
+CONTENT TOPIC: "${prompt}"
 
-OUTPUT FORMAT:
-Respond EXACTLY in this JSON format (no code blocks, no extra text):
-{"items":[{"title":"Your compelling 60-100 character YouTube title here","keywords":["primary-keyword","long-tail-phrase","trending-term","action-keyword","time-specific","related-topic","search-phrase"],"description":"A compelling 2-3 sentence description explaining what this video would cover and why viewers should watch it. This should highlight the main benefits and create additional interest."},{"title":"Another engaging title","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6","keyword7"],"description":"Another engaging description that explains the video content and value proposition to potential viewers."}]}
+PROVEN PATTERNS:
+✅ "How I [Result] in [Time] (Method)"
+✅ "[Number] [Things] That [Outcome] (Most Miss This)"
+✅ "I Tried [Thing] for [Time] - Results"
+✅ "Why [Belief] is Wrong (Real Truth)"
+✅ "[Number] Secrets [Topic] (That Work)"
 
-Generate 5 titles that would make viewers immediately stop scrolling and click to watch the video.`;
+OUTPUT FORMAT (JSON only, no code blocks):
+{"items":[{"title":"Title here","keywords":["keyword1","keyword2","keyword3","keyword4","keyword5"],"description":"Detailed description here."},{"title":"Title 2","keywords":["kw1","kw2","kw3","kw4","kw5"],"description":"Description 2."}]}
+
+Generate exactly 5 titles.`;
 };
 
-// Ollama service function
+// IMPROVED OLLAMA FUNCTION WITH BETTER ERROR HANDLING
 async function generateTitlesWithOllama(
   prompt: string,
-  maxLength: number = 500
+  maxLength: number = 500,
+  youtubeInsights?: YouTubeInsights
 ): Promise<TitleGenerationResponse> {
   try {
     const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
     const ollamaModel = process.env.OLLAMA_MODEL || "qwen3:4b";
 
-    console.log(`🤖 Using Ollama with model ${ollamaModel}`);
+    console.log(`🤖 Using Ollama with model ${ollamaModel}${youtubeInsights ? " + YouTube insights" : ""}`);
 
-    const promptTemplate = getYouTubePromptTemplate(prompt);
-
-    const response = await axios.post(`${ollamaUrl}/api/generate`, {
-      model: ollamaModel,
-      prompt: promptTemplate,
-      stream: false,
-      options: {
-        temperature: 0.8,
-        top_p: 0.9,
-        max_tokens: maxLength,
-        stop: ["Human:", "Assistant:", "\n\nHuman:", "\n\nAssistant:"],
-      },
-    });
-
-    const content = response.data.response;
-    console.log("📝 Ollama raw response:", content);
-
-    const result = extractTitlesFromResponse(content, prompt);
-
-    const finalResult = {
-      ...result,
-      provider: "ollama",
-    };
-
-    if (finalResult.success) {
-      await incrementFeatureUsage("title_generation"); // ✅ Log usage
-    }
-
-    return finalResult;
-  } catch (error: any) {
-    console.error("❌ Ollama service error:", error.message);
-    throw error;
-  }
-}
-
-// OpenRouter service function
-async function generateTitlesWithOpenRouter(
-  prompt: string,
-  maxLength: number = 500,
-  model: string = "deepseek/deepseek-chat-v3-0324:free"
-): Promise<TitleGenerationResponse> {
-  try {
-    const url =
-      process.env.OPENROUTER_URL ||
-      "https://openrouter.ai/api/v1/chat/completions";
-    console.log(`🌐 Using OpenRouter with model: ${model}`);
-
-    const systemMessage = `You are an expert YouTube SEO specialist and viral content creator. Your task is to generate compelling YouTube titles with detailed descriptions and relevant keywords. Focus on creating titles that maximize click-through rates and search visibility.`;
-    const userMessage = getYouTubePromptTemplate(prompt);
+    const promptTemplate = getYouTubePromptTemplate(prompt, youtubeInsights);
 
     const response = await axios.post(
-      url,
+      `${ollamaUrl}/api/generate`,
       {
-        model,
-        messages: [
-          { role: "system", content: systemMessage },
-          { role: "user", content: userMessage },
-        ],
-        max_tokens: maxLength,
-        temperature: 0.8,
-        top_p: 0.9,
-        frequency_penalty: 0.3,
-        presence_penalty: 0.3,
-        response_format: { type: "json_object" },
+        model: ollamaModel,
+        prompt: promptTemplate,
+        stream: false,
+        options: {
+          temperature: 0.8,
+          top_p: 0.9,
+          max_tokens: Math.min(maxLength, 1000), // Reasonable limit
+          stop: ["Human:", "Assistant:", "\n\nHuman:", "\n\nAssistant:"],
+        },
       },
       {
+        timeout: 60000, // 1 minute timeout
         headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": process.env.SITE_URL || "http://localhost:3000",
-          "X-Title": "YouTube Title Generator Pro",
+          'Content-Type': 'application/json',
         },
-        timeout: 30000,
       }
     );
 
-    console.log("📊 OpenRouter response status:", response.status);
-    const content = response.data.choices[0].message.content.trim();
-    console.log("📝 OpenRouter raw content:", content);
+    const content = response.data.response;
+    console.log("📝 Ollama response length:", content?.length || 0);
+
+    if (!content || content.trim().length === 0) {
+      throw new Error("Empty response from Ollama");
+    }
 
     const result = extractTitlesFromResponse(content, prompt);
 
     const finalResult = {
       ...result,
-      provider: "openrouter",
+      provider: youtubeInsights ? "ollama-enhanced" : "ollama",
     };
 
     if (finalResult.success) {
-      await incrementFeatureUsage("title_generation"); // ✅ Log usage
+      await incrementFeatureUsage("title_generation");
     }
 
     return finalResult;
   } catch (error: any) {
-    console.error("❌ OpenRouter service error:", error.message);
+    const errorMsg = error.response?.data?.error || error.message || "Unknown Ollama error";
+    console.error("❌ Ollama service error:", errorMsg);
+    throw new Error(`Ollama failed: ${errorMsg}`);
+  }
+}
+
+// IMPROVED OPENROUTER FUNCTION WITH RETRY AND BETTER ERROR HANDLING
+async function generateTitlesWithOpenRouter(
+  prompt: string,
+  maxLength: number = 500,
+  model: string = "deepseek/deepseek-chat-v3-0324:free",
+  youtubeInsights?: YouTubeInsights
+): Promise<TitleGenerationResponse> {
+  try {
+    const url = process.env.OPENROUTER_URL || "https://openrouter.ai/api/v1/chat/completions";
+    console.log(`🌐 Using OpenRouter with model: ${model}${youtubeInsights ? " + YouTube insights" : ""}`);
+
+    const systemMessage = `You are an expert YouTube SEO specialist. Generate compelling YouTube titles with keywords and descriptions optimized for maximum engagement and search visibility.`;
+    const userMessage = getYouTubePromptTemplate(prompt, youtubeInsights);
+
+    const requestData = {
+      model,
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ],
+      max_tokens: Math.min(maxLength, 1500),
+      temperature: 0.8,
+      top_p: 0.9,
+      frequency_penalty: 0.3,
+      presence_penalty: 0.3,
+      response_format: { type: "json_object" },
+    };
+
+    const response = await axios.post(url, requestData, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.SITE_URL || "http://localhost:3000",
+        "X-Title": "YouTube Title Generator Pro",
+      },
+      timeout: 45000, // 45 second timeout
+    });
+
+    console.log("📊 OpenRouter response status:", response.status);
+    
+    if (!response.data.choices?.[0]?.message?.content) {
+      throw new Error("Invalid response structure from OpenRouter");
+    }
+
+    const content = response.data.choices[0].message.content.trim();
+    console.log("📝 OpenRouter response length:", content.length);
+
+    const result = extractTitlesFromResponse(content, prompt);
+
+    const finalResult = {
+      ...result,
+      provider: youtubeInsights ? "openrouter-enhanced" : "openrouter",
+    };
+
+    if (finalResult.success) {
+      await incrementFeatureUsage("title_generation");
+    }
+
+    return finalResult;
+  } catch (error: any) {
+    let errorMsg = "Unknown OpenRouter error";
+    let errorCode = 500;
+
     if (error.response) {
+      errorCode = error.response.status;
+      errorMsg = error.response.data?.error?.message || `HTTP ${errorCode}`;
+      
       console.error("🔍 OpenRouter error details:", {
         status: error.response.status,
         statusText: error.response.statusText,
         data: error.response.data,
       });
+
+      // Handle specific error codes
+      if (errorCode === 429) {
+        errorMsg = "Rate limit exceeded. Please try again in a few minutes.";
+      } else if (errorCode === 401) {
+        errorMsg = "Invalid API key or authentication failed.";
+      } else if (errorCode === 500) {
+        errorMsg = "OpenRouter service temporarily unavailable.";
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      errorMsg = "Request timeout - service took too long to respond.";
+    } else {
+      errorMsg = error.message;
     }
-    throw error;
+
+    console.error("❌ OpenRouter service error:", errorMsg);
+    throw new Error(`OpenRouter failed: ${errorMsg}`);
   }
 }
 
-// Enhanced helper function to extract titles from API responses
-function extractTitlesFromResponse(
-  content: string,
-  prompt: string
-): TitleGenerationResponse {
+// KEEP ALL YOUR EXISTING HELPER FUNCTIONS...
+function extractTitlesFromResponse(content: string, prompt: string): TitleGenerationResponse {
   try {
-    console.log("🔍 Parsing content:", content.substring(0, 200) + "...");
+    console.log("🔍 Parsing content length:", content.length);
 
-    // Clean up the response content
     let jsonContent = content.trim();
 
-    // Remove code block markers if they exist
+    // Remove code block markers
     if (jsonContent.includes("```")) {
       const codeMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (codeMatch && codeMatch[1]) {
@@ -223,36 +483,26 @@ function extractTitlesFromResponse(
       }
     }
 
-    // Extract JSON-like structure
+    // Extract JSON structure
     const jsonMatch = jsonContent.match(/{[\s\S]*}/);
     if (jsonMatch) {
       jsonContent = jsonMatch[0];
     }
 
-    // Clean up common formatting issues
+    // Clean formatting issues
     jsonContent = jsonContent
-      .replace(/,\s*}/g, "}") // Remove trailing commas
-      .replace(/,\s*]/g, "]") // Remove trailing commas in arrays
-      .replace(/[\u201C\u201D]/g, '"') // Replace smart quotes
-      .replace(/[\u2018\u2019]/g, "'"); // Replace smart single quotes
-
-    console.log("🧹 Cleaned JSON content:", jsonContent);
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'");
 
     const parsedData = JSON.parse(jsonContent);
-    console.log(
-      "✅ Parsed data structure:",
-      JSON.stringify(parsedData, null, 2)
-    );
 
-    // Method 1: Standard format validation
-    if (
-      parsedData.items &&
-      Array.isArray(parsedData.items) &&
-      parsedData.items.length > 0
-    ) {
+    // Validate and extract titles
+    if (parsedData.items && Array.isArray(parsedData.items) && parsedData.items.length > 0) {
       const validItems = parsedData.items
         .filter((item: any) => {
-          const isValid =
+          return (
             typeof item === "object" &&
             item !== null &&
             typeof item.title === "string" &&
@@ -261,12 +511,8 @@ function extractTitlesFromResponse(
             Array.isArray(item.keywords) &&
             item.keywords.length > 0 &&
             typeof item.description === "string" &&
-            item.description.trim().length >= 20;
-
-          if (!isValid) {
-            console.log("⚠️ Invalid item filtered out:", item);
-          }
-          return isValid;
+            item.description.trim().length >= 20
+          );
         })
         .slice(0, 5)
         .map((item: any) => ({
@@ -278,221 +524,23 @@ function extractTitlesFromResponse(
         }));
 
       if (validItems.length > 0) {
-        console.log(
-          `✅ Successfully extracted ${validItems.length} valid titles using standard format`
-        );
+        console.log(`✅ Successfully extracted ${validItems.length} valid titles`);
         return fillRemainingSlots(validItems, prompt);
       }
-    }
-
-    // Method 2: Handle malformed flat array format (your edge case)
-    if (parsedData.items && Array.isArray(parsedData.items)) {
-      console.log("🔄 Attempting to parse malformed flat array format...");
-      const reconstructedItems = reconstructFromFlatArray(parsedData.items);
-
-      if (reconstructedItems.length > 0) {
-        console.log(
-          `✅ Successfully reconstructed ${reconstructedItems.length} titles from flat array`
-        );
-        return fillRemainingSlots(reconstructedItems, prompt);
-      }
-    }
-
-    // Method 3: Handle direct array format
-    if (Array.isArray(parsedData)) {
-      console.log("🔄 Attempting to parse direct array format...");
-      const validItems = parsedData
-        .filter(
-          (item: any) =>
-            typeof item === "object" &&
-            item !== null &&
-            typeof item.title === "string" &&
-            Array.isArray(item.keywords) &&
-            typeof item.description === "string"
-        )
-        .slice(0, 5)
-        .map((item: any) => ({
-          title: item.title.trim(),
-          keywords: item.keywords
-            .filter((kw: any) => typeof kw === "string" && kw.trim().length > 0)
-            .slice(0, 7),
-          description:
-            item.description?.trim() ||
-            generateDescriptionForTitle(item.title, prompt),
-        }));
-
-      if (validItems.length > 0) {
-        console.log(
-          `✅ Successfully extracted ${validItems.length} titles from direct array`
-        );
-        return fillRemainingSlots(validItems, prompt);
-      }
-    }
-
-    // Method 4: Try to extract from malformed JSON with regex patterns
-    const regexExtractedItems = extractWithRegexPatterns(content, prompt);
-    if (regexExtractedItems.length > 0) {
-      console.log(
-        `✅ Successfully extracted ${regexExtractedItems.length} titles using regex patterns`
-      );
-      return fillRemainingSlots(regexExtractedItems, prompt);
     }
 
     throw new Error("No valid title structure found in response");
   } catch (parseError: any) {
-    console.log("❌ All parsing methods failed:", parseError.message);
-    console.log("🔄 Generating enhanced fallback titles");
-
+    console.log("❌ Parsing failed:", parseError.message);
     return {
       success: true,
       titles: generateEnhancedFallbackTitles(prompt),
     };
   }
 }
-// New helper function to reconstruct titles from flat array format
-function reconstructFromFlatArray(flatArray: any[]): TitleWithKeywords[] {
-  const reconstructedItems: TitleWithKeywords[] = [];
 
-  try {
-    for (let i = 0; i < flatArray.length; i++) {
-      // Look for "title" string followed by actual title
-      if (flatArray[i] === "title" && i + 1 < flatArray.length) {
-        let title = "";
-        let keywords: string[] = [];
-        let description = "";
-
-        // Extract title
-        if (typeof flatArray[i + 1] === "string") {
-          title = flatArray[i + 1].trim();
-        }
-
-        // Look for keywords
-        for (let j = i + 2; j < flatArray.length; j++) {
-          if (flatArray[j] === "keywords" && j + 1 < flatArray.length) {
-            if (Array.isArray(flatArray[j + 1])) {
-              keywords = flatArray[j + 1]
-                .filter(
-                  (kw: any) => typeof kw === "string" && kw.trim().length > 0
-                )
-                .slice(0, 7);
-            }
-            break;
-          }
-        }
-
-        // Look for description
-        for (let j = i + 2; j < flatArray.length; j++) {
-          if (flatArray[j] === "description" && j + 1 < flatArray.length) {
-            if (typeof flatArray[j + 1] === "string") {
-              description = flatArray[j + 1].trim();
-            }
-            break;
-          }
-        }
-
-        // Validate and add the reconstructed item
-        if (title.length >= 20 && title.length <= 120 && keywords.length > 0) {
-          reconstructedItems.push({
-            title,
-            keywords,
-            description:
-              description || generateDescriptionForTitle(title, "content"),
-          });
-
-          // Stop if we have enough items
-          if (reconstructedItems.length >= 5) break;
-        }
-      }
-    }
-  } catch (error) {
-    console.log("⚠️ Error reconstructing from flat array:", error);
-  }
-
-  return reconstructedItems;
-}
-
-// New helper function to extract titles using regex patterns
-function extractWithRegexPatterns(
-  content: string,
-  prompt: string
-): TitleWithKeywords[] {
-  const extractedItems: TitleWithKeywords[] = [];
-
-  try {
-    // Pattern 1: Look for quoted titles that seem like YouTube titles
-    const titlePattern =
-      /"([^"]{30,100}[^"]*(?:2025|How|Secret|Why|I Tried|Ultimate)[^"]*?)"/g;
-    const titleMatches = content.match(titlePattern);
-
-    if (titleMatches) {
-      titleMatches.slice(0, 5).forEach((match, index) => {
-        const title = match.replace(/"/g, "").trim();
-        if (title.length >= 20 && title.length <= 120) {
-          extractedItems.push({
-            title,
-            keywords: generateKeywordsForTitle(title, prompt),
-            description: generateDescriptionForTitle(title, prompt),
-          });
-        }
-      });
-    }
-
-    // Pattern 2: Look for numbered lists that might be titles
-    const numberedPattern = /\d+\.\s*([^\n]{30,100})/g;
-    const numberedMatches = content.match(numberedPattern);
-
-    if (numberedMatches && extractedItems.length < 5) {
-      numberedMatches.slice(0, 5 - extractedItems.length).forEach((match) => {
-        const title = match.replace(/\d+\.\s*/, "").trim();
-        if (title.length >= 20 && title.length <= 120) {
-          extractedItems.push({
-            title,
-            keywords: generateKeywordsForTitle(title, prompt),
-            description: generateDescriptionForTitle(title, prompt),
-          });
-        }
-      });
-    }
-  } catch (error) {
-    console.log("⚠️ Error extracting with regex patterns:", error);
-  }
-
-  return extractedItems;
-}
-// Helper function to generate keywords for a title
-function generateKeywordsForTitle(title: string, prompt: string): string[] {
-  const baseKeywords = prompt
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((word) => word.length > 2);
-  const titleWords = title
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((word) => word.length > 2);
-
-  // Combine and deduplicate
-  const allKeywords = [...baseKeywords, ...titleWords];
-  const uniqueKeywords = [...new Set(allKeywords)];
-
-  // Add some common YouTube keywords
-  const commonKeywords = [
-    "tutorial",
-    "guide",
-    "tips",
-    "2025",
-    "how to",
-    "secrets",
-    "exposed",
-  ];
-
-  return [...uniqueKeywords, ...commonKeywords].slice(0, 7);
-}
-
-// Helper function to fill remaining slots with fallback titles
-function fillRemainingSlots(
-  validItems: TitleWithKeywords[],
-  prompt: string
-): TitleGenerationResponse {
+// Keep your existing helper functions...
+function fillRemainingSlots(validItems: TitleWithKeywords[], prompt: string): TitleGenerationResponse {
   const finalItems = [...validItems];
 
   if (finalItems.length < 5) {
@@ -509,117 +557,93 @@ function fillRemainingSlots(
     titles: finalItems.slice(0, 5),
   };
 }
-// Helper function to generate description for a title
-function generateDescriptionForTitle(
-  title: string,
-  originalPrompt: string
-): string {
-  const topic = originalPrompt.substring(0, 50).trim();
-  const currentYear = new Date().getFullYear();
 
-  // Generate contextual description based on title patterns
-  if (title.includes("How I") || title.includes("How to")) {
-    return `This comprehensive guide walks you through the exact steps and strategies used to achieve real results. You'll learn practical techniques that you can implement immediately to see measurable improvements in your ${topic} journey.`;
-  } else if (title.includes("Secret") || title.includes("Nobody Tells You")) {
-    return `Discover the insider knowledge and hidden strategies that most people never learn about ${topic}. This video reveals the techniques that experts use but rarely share publicly, giving you a competitive advantage.`;
-  } else if (title.includes("I Tried") || title.includes("What Happened")) {
-    return `Follow along as I document my real experience and share the honest results, including what worked, what didn't, and the surprising lessons learned. You'll get an authentic look at the actual process and outcomes.`;
-  } else if (title.includes("Why") && title.includes("Wrong")) {
-    return `Uncover the common misconceptions and mistakes that are holding most people back from success with ${topic}. Learn the correct approach and why conventional wisdom might be leading you astray.`;
-  } else {
-    return `Get expert insights and proven strategies for ${topic} that deliver real results. This video provides actionable advice and practical tips that you can use to improve your skills and achieve your goals in ${currentYear}.`;
-  }
-}
-
-// Generate enhanced YouTube-style fallback titles with descriptions
 function generateEnhancedFallbackTitles(prompt: string): TitleWithKeywords[] {
   const currentYear = new Date().getFullYear();
   const topicShort = prompt.substring(0, 30).trim();
-  const topicKeyword = topicShort
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim();
+  const topicKeyword = topicShort.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
 
   console.log(`🎯 Generating fallback titles for topic: "${topicShort}"`);
 
   return [
     {
       title: `How I Mastered ${topicShort} in ${currentYear} (Complete Guide)`,
-      keywords: [
-        "how to",
-        topicKeyword,
-        "tutorial",
-        "guide",
-        "step by step",
-        `${currentYear}`,
-        "complete",
-      ],
-      description: `This comprehensive guide breaks down the exact system and strategies I used to master ${topicShort} this year. You'll learn the step-by-step process, common pitfalls to avoid, and proven techniques that actually work. Perfect for beginners and those looking to improve their skills.`,
+      keywords: ["how to", topicKeyword, "tutorial", "guide", "step by step", `${currentYear}`, "complete"],
+      description: `This comprehensive guide breaks down the exact system and strategies I used to master ${topicShort} this year. You'll learn the step-by-step process, common pitfalls to avoid, and proven techniques that actually work. Perfect for beginners and those looking to improve their skills with practical, actionable advice that delivers real results.`,
     },
     {
       title: `5 ${topicShort} Secrets That Actually Work (Proven Results)`,
-      keywords: [
-        "secrets",
-        topicKeyword,
-        "tips",
-        "proven",
-        "results",
-        "strategies",
-        "that work",
-      ],
-      description: `Discover the five game-changing secrets that most people never learn about ${topicShort}. These proven strategies have been tested and refined to deliver real results. You'll learn insider techniques that can dramatically improve your success rate.`,
+      keywords: ["secrets", topicKeyword, "tips", "proven", "results", "strategies", "that work"],
+      description: `Discover the five game-changing secrets that most people never learn about ${topicShort}. These proven strategies have been tested and refined to deliver real results. You'll learn insider techniques that can dramatically improve your success rate and give you a competitive advantage in this field.`,
     },
     {
       title: `Why Everyone Gets ${topicShort} Wrong (The Real Truth)`,
-      keywords: [
-        "truth about",
-        topicKeyword,
-        "mistakes",
-        "wrong way",
-        "reality",
-        "exposed",
-        "facts",
-      ],
-      description: `Uncover the common misconceptions and critical mistakes that are sabotaging most people's success with ${topicShort}. Learn why conventional wisdom is often wrong and discover the correct approach that actually leads to results.`,
+      keywords: ["truth about", topicKeyword, "mistakes", "wrong way", "reality", "exposed", "facts"],
+      description: `Uncover the common misconceptions and critical mistakes that are sabotaging most people's success with ${topicShort}. Learn why conventional wisdom is often wrong and discover the correct approach that actually leads to results. This eye-opening analysis will change how you think about this topic.`,
     },
     {
       title: `I Tried ${topicShort} for 30 Days - Here's What Happened`,
-      keywords: [
-        "experiment",
-        topicKeyword,
-        "30 days",
-        "results",
-        "challenge",
-        "review",
-        "what happened",
-      ],
-      description: `Follow my honest 30-day journey experimenting with ${topicShort} and see the real, unfiltered results. I'll share what worked, what didn't, the unexpected challenges I faced, and the valuable lessons learned throughout the process.`,
+      keywords: ["experiment", topicKeyword, "30 days", "results", "challenge", "review", "what happened"],
+      description: `Follow my honest 30-day journey experimenting with ${topicShort} and see the real, unfiltered results. I'll share what worked, what didn't, the unexpected challenges I faced, and the valuable lessons learned throughout the process. Get an authentic look at the actual experience and outcomes.`,
     },
     {
       title: `Ultimate ${topicShort} Guide Nobody Talks About (${currentYear})`,
-      keywords: [
-        "ultimate guide",
-        topicKeyword,
-        "advanced",
-        "comprehensive",
-        `${currentYear}`,
-        "expert",
-        "secret",
-      ],
-      description: `The most comprehensive and up-to-date guide to ${topicShort} that covers advanced strategies most content creators ignore. This expert-level resource provides in-depth knowledge and cutting-edge techniques for ${currentYear} and beyond.`,
+      keywords: ["ultimate guide", topicKeyword, "advanced", "comprehensive", `${currentYear}`, "expert", "secret"],
+      description: `The most comprehensive and up-to-date guide to ${topicShort} that covers advanced strategies most content creators ignore. This expert-level resource provides in-depth knowledge and cutting-edge techniques for ${currentYear} and beyond. Perfect for those ready to take their skills to the next level.`,
     },
   ];
 }
 
-// Main title generation function with intelligent fallback
+// OPTIMIZED MAIN FUNCTION WITH PARALLEL YOUTUBE REQUESTS
 export async function generateTitle({
   prompt,
   maxLength = 500,
   model = "deepseek/deepseek-chat-v3-0324:free",
+  useYouTubeAnalysis = true,
 }: TitleGenerationOptions): Promise<TitleGenerationResponse> {
-  console.log(
-    `🚀 Starting title generation for: "${prompt.substring(0, 50)}..."`
-  );
+  const startTime = Date.now();
+  console.log(`🚀 Starting title generation for: "${prompt.substring(0, 50)}..."${useYouTubeAnalysis ? " with YouTube insights" : ""}`);
+
+  let youtubeInsights: YouTubeInsights | undefined;
+
+  if (useYouTubeAnalysis) {
+    try {
+      console.log("📊 Gathering YouTube insights...");
+
+      // OPTIMIZED: Run YouTube API calls in parallel with timeout
+      const youtubePromise = Promise.allSettled([
+        searchYouTubeVideos(prompt, 10),
+        getTrendingVideos("0", 15),
+      ]);
+
+      const results = await Promise.race([
+        youtubePromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('YouTube API timeout')), 10000))
+      ]) as PromiseSettledResult<any>[];
+
+      let searchResults: YouTubeSearchResult[] = [];
+      let trendingVideos: YouTubeVideoData[] = [];
+
+      if (results[0].status === 'fulfilled') {
+        searchResults = results[0].value;
+      }
+      if (results[1].status === 'fulfilled') {
+        trendingVideos = results[1].value;
+      }
+
+      if (searchResults.length > 0 || trendingVideos.length > 0) {
+        youtubeInsights = generateYouTubeInsights(trendingVideos, searchResults);
+        console.log(`✅ YouTube insights generated in ${Date.now() - startTime}ms`);
+        console.log(`📈 Found ${youtubeInsights.trendingKeywords.length} trending keywords`);
+        console.log(`🎯 Analyzed ${trendingVideos.length} videos for patterns`);
+      } else {
+        console.log('⚠️ No YouTube data retrieved, continuing without insights');
+      }
+    } catch (error: any) {
+      console.error("⚠️ YouTube insights failed:", error.message);
+      console.log("🔄 Continuing without YouTube data...");
+    }
+  }
 
   // Validate input
   if (!prompt || prompt.trim().length < 3) {
@@ -632,37 +656,36 @@ export async function generateTitle({
     };
   }
 
-  // Try Ollama first
-  try {
-    console.log("🔄 Attempting Ollama generation...");
-    throw new Error("Simulated Ollama failure"); // Simulate failure for testing
-    const result = await generateTitlesWithOllama(prompt.trim(), maxLength);
-    console.log("✅ Ollama generation successful");
-    return result;
-  } catch (ollamaError: any) {
-    console.log(`⚠️ Ollama failed: ${ollamaError.message}`);
-    console.log("🔄 Falling back to OpenRouter...");
-
-    // Fallback to OpenRouter
+  // Try Ollama first (if enabled)
+  if (process.env.OLLAMA_ENABLED !== 'false') {
     try {
-      const result = await generateTitlesWithOpenRouter(
-        prompt.trim(),
-        maxLength,
-        model
-      );
-      console.log("✅ OpenRouter generation successful");
+      console.log("🔄 Attempting Ollama generation...");
+      const result = await generateTitlesWithOllama(prompt.trim(), maxLength, youtubeInsights);
+      console.log(`✅ Ollama generation successful in ${Date.now() - startTime}ms`);
       return result;
-    } catch (openRouterError: any) {
-      console.error(`❌ OpenRouter also failed: ${openRouterError.message}`);
-      console.log("🔄 Using enhanced fallback titles");
-
-      // Both services failed - return enhanced fallback
-      return {
-        success: false,
-        titles: generateEnhancedFallbackTitles(prompt),
-        provider: "fallback",
-        error: `Service is Currently unavailable. Try again later.`,
-      };
+    } catch (ollamaError: any) {
+      console.log(`⚠️ Ollama failed: ${ollamaError.message}`);
     }
   }
+
+  // Fallback to OpenRouter
+  console.log("🔄 Using OpenRouter...");
+  try {
+    const result = await generateTitlesWithOpenRouter(prompt.trim(), maxLength, model, youtubeInsights);
+    console.log(`✅ OpenRouter generation successful in ${Date.now() - startTime}ms`);
+    return result;
+  } catch (openRouterError: any) {
+    console.error(`❌ OpenRouter failed: ${openRouterError.message}`);
+    console.log("🔄 Using enhanced fallback titles");
+
+    return {
+      success: false,
+      titles: generateEnhancedFallbackTitles(prompt),
+      provider: "fallback",
+      error: openRouterError.message || "Service is currently unavailable. Try again later.",
+    };
+  }
 }
+
+// Export functions
+export { getVideoDetails, searchYouTubeVideos, getTrendingVideos, generateYouTubeInsights };

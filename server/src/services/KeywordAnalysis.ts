@@ -27,7 +27,9 @@ async function searchYouTubeVideos(
   }
 
   const url = "https://www.googleapis.com/youtube/v3/search";
-  const params = {
+  
+  // First attempt: Search within last 30 days
+  const recentParams = {
     part: "snippet",
     q: keyword,
     type: "video",
@@ -40,10 +42,45 @@ async function searchYouTubeVideos(
   };
 
   try {
-    const response = await axios.get<YouTubeSearchResponse>(url, { params });
-    console.log("items==>,", response.data.items, "found for keyword:", keyword);
+    console.log(`🔍 Searching for "${keyword}" in last 30 days...`);
+    const response = await axios.get<YouTubeSearchResponse>(url, { 
+      params: recentParams 
+    });
     
-    return response.data.items;
+    console.log("items==>", response.data.items, "found for keyword:", keyword);
+    
+    // If we found results, return them
+    if (response.data.items && response.data.items.length > 0) {
+      console.log(`✅ Found ${response.data.items.length} recent videos for: "${keyword}"`);
+      return response.data.items;
+    }
+    
+    // If no results found in last 30 days, retry without date filter
+    console.log(`⚠️ No recent videos found for "${keyword}", searching all time...`);
+    
+    const allTimeParams = {
+      part: "snippet",
+      q: keyword,
+      type: "video",
+      maxResults: maxResults.toString(),
+      order: "relevance",
+      key: apiKey,
+    };
+    
+    const retryResponse = await axios.get<YouTubeSearchResponse>(url, { 
+      params: allTimeParams 
+    });
+    
+    console.log("items==> (all time)", retryResponse.data.items, "found for keyword:", keyword);
+    
+    if (retryResponse.data.items && retryResponse.data.items.length > 0) {
+      console.log(`✅ Found ${retryResponse.data.items.length} videos (all time) for: "${keyword}"`);
+      return retryResponse.data.items;
+    } else {
+      console.log(`❌ No videos found for keyword: "${keyword}"`);
+      return [];
+    }
+    
   } catch (error: any) {
     console.error(
       "YouTube Search API error:",
