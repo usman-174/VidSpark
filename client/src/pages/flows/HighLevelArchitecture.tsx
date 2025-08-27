@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Database, Brain, Server, Code, Cpu } from "lucide-react";
 
-const Architecture = () => {
+const HighLevelArchitecture = () => {
   const [showPythonModal, setShowPythonModal] = useState(false);
   const [showNodeModal, setShowNodeModal] = useState(false);
 
@@ -36,15 +36,6 @@ const Architecture = () => {
       iconColor: "text-orange-600",
     },
   ];
-
-  // const mlFlowSteps = [
-  //   { title: "1. Request", subtitle: "From Frontend" },
-  //   { title: "2. Process", subtitle: "Node.js Server" },
-  //   { title: "3. ML Call", subtitle: "Python Server", special: true },
-  //   { title: "4. Response", subtitle: "Back to Node.js" },
-  //   { title: "5. DB Update", subtitle: "If Required" },
-  //   { title: "6. Final Response", subtitle: "To Frontend" },
-  // ];
 
   const legendItems = [
     { color: "bg-blue-50 border-blue-600", label: "Frontend Layer (React.js)" },
@@ -543,4 +534,4 @@ const Architecture = () => {
   );
 };
 
-export default Architecture;
+export default HighLevelArchitecture;

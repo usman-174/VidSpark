@@ -22,6 +22,7 @@ import uploadRoutes from "./routes/uploadRoute";
 import userInsightsRouter from "./routes/userInsightsRoutes";
 import userRouter from "./routes/userRoutes";
 import ytRouter from "./routes/ytRoutes";
+import { initializeCronJobs } from "./cron";
 
 // Load environment variables
 dotenv.config();
@@ -126,7 +127,5 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-  console.log(
-    `🔍 Keyword Analysis API available at: http://localhost:${PORT}/api/keyword-analysis`
-  );
+ 
 });

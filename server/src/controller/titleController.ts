@@ -6,7 +6,6 @@ import { getUser } from "../services/authService";
 import {
   trackFeatureUsage,
   trackPopularContent,
-  updateFavoriteFeature,
 } from "../services/statsService";
 import { ContentType, FeatureType, PrismaClient } from "@prisma/client";
 

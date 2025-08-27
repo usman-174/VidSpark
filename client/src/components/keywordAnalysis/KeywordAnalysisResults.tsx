@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -28,15 +23,16 @@ import {
   keywordAnalysisUtils,
   type KeywordAnalysisData,
 } from "@/api/keywordAnalysisApi";
+import { Link } from "react-router-dom";
 
 interface KeywordAnalysisResultsProps {
   analysisData: KeywordAnalysisData;
   onViewDetails: () => void;
 }
 
-const KeywordAnalysisResults = ({ 
-  analysisData, 
-  onViewDetails 
+const KeywordAnalysisResults = ({
+  analysisData,
+  onViewDetails,
 }: KeywordAnalysisResultsProps) => {
   const [copiedVideoIndex, setCopiedVideoIndex] = useState<number | null>(null);
 
@@ -51,13 +47,13 @@ const KeywordAnalysisResults = ({
       textArea.focus();
       textArea.select();
       try {
-        document.execCommand('copy');
+        document.execCommand("copy");
       } catch (err) {
-        console.error('Fallback: Oops, unable to copy', err);
+        console.error("Fallback: Oops, unable to copy", err);
       }
       document.body.removeChild(textArea);
     }
-    
+
     setCopiedVideoIndex(index);
     setTimeout(() => setCopiedVideoIndex(null), 2000);
     toast.success("Video title copied to clipboard!");
@@ -96,7 +92,7 @@ const KeywordAnalysisResults = ({
   const formatInsight = (text: string) => {
     // Split by double asterisks to find titles
     const parts = text.split(/\*\*(.*?)\*\*/g);
-    
+
     return parts.map((part, partIndex) => {
       if (partIndex % 2 === 1) {
         // This is a title (between **)
@@ -111,7 +107,10 @@ const KeywordAnalysisResults = ({
         return emphasizedParts.map((emphPart, emphIndex) => {
           if (emphIndex % 2 === 1) {
             return (
-              <span key={`${partIndex}-${emphIndex}`} className="font-medium text-gray-800">
+              <span
+                key={`${partIndex}-${emphIndex}`}
+                className="font-medium text-gray-800"
+              >
                 {emphPart}
               </span>
             );
@@ -162,7 +161,8 @@ const KeywordAnalysisResults = ({
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-blue-700 text-sm flex items-center">
             <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-            This analysis was retrieved from cache (analyzed within the last 6 hours)
+            This analysis was retrieved from cache (analyzed within the last 6
+            hours)
           </p>
         </div>
       )}
@@ -195,10 +195,10 @@ const KeywordAnalysisResults = ({
                 <div className="mt-2">
                   <Badge
                     className={`${keywordAnalysisUtils.getOpportunityColor(
-                      insights.contentOpportunity || 'LOW'
+                      insights.contentOpportunity || "LOW"
                     )} bg-transparent border-0 text-lg font-semibold p-0`}
                   >
-                    {insights.contentOpportunity || 'N/A'}
+                    {insights.contentOpportunity || "N/A"}
                   </Badge>
                 </div>
               </div>
@@ -246,10 +246,12 @@ const KeywordAnalysisResults = ({
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Clock className="h-5 w-5 text-purple-600 mr-2" />
-                <span className="text-sm text-purple-600 font-medium">Trend</span>
+                <span className="text-sm text-purple-600 font-medium">
+                  Trend
+                </span>
               </div>
               <div className="flex justify-center">
-                {renderTrendDirection(insights.trendDirection || 'STABLE')}
+                {renderTrendDirection(insights.trendDirection || "STABLE")}
               </div>
             </div>
           </div>
@@ -310,7 +312,9 @@ const KeywordAnalysisResults = ({
                 View All
               </Button>
             </div>
-            <p className="text-sm text-indigo-600">Click titles to copy • Showing top 5</p>
+            <p className="text-sm text-indigo-600">
+              Click titles to copy • Showing top 5
+            </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -321,12 +325,12 @@ const KeywordAnalysisResults = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   className="group p-3 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-colors cursor-pointer"
-                  onClick={() => handleCopyVideoTitle(video.title || '', index)}
+                  onClick={() => handleCopyVideoTitle(video.title || "", index)}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1 pr-4">
                       <h4 className="font-medium text-gray-800 text-sm line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                        {video.title || 'No title available'}
+                        {video.title || "No title available"}
                       </h4>
                       <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                         <span className="flex items-center">
@@ -335,14 +339,15 @@ const KeywordAnalysisResults = ({
                         </span>
                         <span className="flex items-center">
                           <Users className="h-3 w-3 mr-1" />
-                          {video.channelName || 'Unknown Channel'}
+                          {video.channelName || "Unknown Channel"}
                         </span>
                         <span className="flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {video.uploadDate 
-                            ? `${keywordAnalysisUtils.getDaysSinceUpload(video.uploadDate)}d ago`
-                            : 'Unknown date'
-                          }
+                          {video.uploadDate
+                            ? `${keywordAnalysisUtils.getDaysSinceUpload(
+                                video.uploadDate
+                              )}d ago`
+                            : "Unknown date"}
                         </span>
                       </div>
                     </div>
@@ -377,13 +382,14 @@ const KeywordAnalysisResults = ({
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {insights.topChannels.map((channel, index) => (
-                <Badge
-                  key={index}
-                  variant="outline"
-                  className="bg-white text-teal-700 border-teal-200 hover:bg-teal-100 cursor-default"
-                >
-                  {channel}
-                </Badge>
+                <Link key={index} to={`https://www.youtube.com/@${channel}`} className="no-underline">
+                  <Badge
+                    variant="outline"
+                    className="bg-white text-teal-700 border-teal-200 hover:bg-teal-100 cursor-default"
+                  >
+                    {channel}
+                  </Badge>
+                </Link>
               ))}
             </div>
           </CardContent>

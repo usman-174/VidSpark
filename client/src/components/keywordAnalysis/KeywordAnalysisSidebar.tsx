@@ -39,7 +39,7 @@ const KeywordAnalysisSidebar = ({
   // Fetch trending keywords (limited for sidebar)
   const { data: trendingData } = useQuery({
     queryKey: ["trending-keywords"],
-    queryFn: () => keywordAnalysisAPI.getTrending({ limit: 5 }),
+    queryFn: () => keywordAnalysisAPI.getTrending({ limit: 4 }),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -174,6 +174,7 @@ const KeywordAnalysisSidebar = ({
                       </p>
                     </div>
                   )}
+                  
                 </ScrollArea>
               </DialogContent>
             </Dialog>
@@ -247,7 +248,8 @@ const KeywordAnalysisSidebar = ({
               Recent Analysis
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
+          {/* Make the card content scrollable because the data is too much */}
+          <CardContent className="pt-4 overflow-y-auto max-h-72">
             {historyData?.success && historyData.data.analyses.length > 0 ? (
               <div className="space-y-2">
                 {historyData.data.analyses.map((item) => (

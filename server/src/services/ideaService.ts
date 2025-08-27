@@ -120,7 +120,7 @@ Generate 4-5 DIFFERENT titles across various categories that would make Pakistan
 
     console.log("📊 OpenRouter response status:", response.status);
     const content = response.data.choices[0].message.content.trim();
-    console.log("📝 OpenRouter raw content:", content);
+    // console.log("📝 OpenRouter raw content:", content);
 
     const result = extractTitlesFromResponse(content, newsTitle);
 

@@ -21,7 +21,7 @@ export const autoFetchIdeasOfTheDay = async () => {
  * Returns the latest ideas of the day (up to 8).
  * Expected query: /ideas/show
  */
-export const showIdeasOfTheDay = async (req: Request, res: Response) => {
+export const showIdeasOfTheDay = async (_: Request, res: Response) => {
   try {
     const ideas = await getIdeasOfTheDayByDate();
     
